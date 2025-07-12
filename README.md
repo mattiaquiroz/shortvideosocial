@@ -54,6 +54,7 @@ Technologies I'm working with:
 ## How to Run Locally
 
 ### Backend
+```bash
 # Ensure PostgreSQL is running
 # Run the Spring Boot application
 mvn spring-boot:run
