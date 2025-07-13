@@ -11,12 +11,6 @@ The purpose is to explore how such platforms work technically, both on the front
 This is a work-in-progress project.  
 It is primarily for learning and testing purposes.
 
-Technologies I'm working with:
-- Spring Boot (backend)
-- PostgreSQL (database)
-- Local file system for video storage
-- Flutter (mobile app)
-
 ---
 
 ## Features (Planned / In Progress)
@@ -36,7 +30,7 @@ Technologies I'm working with:
 ## Backend Stack
 
 - Spring Boot (Java)
-- PostgreSQL (running locally)
+- PostgreSQL
 - Maven for dependency management
 - Local file system used for storing video files
 
