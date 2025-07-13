@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/create.dart';
+import 'package:shortvideoapp/home.dart';
 import 'package:shortvideoapp/profile.dart';
 
 void main() {
@@ -14,7 +15,7 @@ class ShortVideoApp extends StatelessWidget {
     return MaterialApp(
       title: 'ShortVideoApp',
       theme: ThemeData(
-        primaryColor: const Color.fromARGB(188, 0, 0, 0),
+        primaryColor: const Color.fromARGB(255, 0, 0, 0),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         hoverColor: Colors.transparent,
@@ -41,23 +42,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: pages[pageIndex],
-      bottomNavigationBar: navBar(context),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        bottom: false,
+        child: navBar(context),
+      ),
     );
   }
 
   Container navBar(BuildContext context) {
     return Container(
-      height: 60,
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40)
-        ),
-      ),
+      padding: const EdgeInsets.only(top: 12, bottom: 20),
+      decoration: BoxDecoration(color: Theme.of(context).primaryColor),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -68,18 +64,13 @@ class _HomePageState extends State<HomePage> {
                 pageIndex = 0;
               });
             },
-            icon:
-                pageIndex == 0
-                    ? const Icon(
-                      Icons.home_filled,
-                      color: Colors.white,
-                      size: 35,
-                    )
-                    : const Icon(
-                      Icons.home_outlined,
-                      color: Colors.white,
-                      size: 35,
-                    ),
+            icon: pageIndex == 0
+                ? const Icon(Icons.home_filled, color: Colors.white, size: 35)
+                : const Icon(
+                    Icons.home_outlined,
+                    color: Colors.white,
+                    size: 35,
+                  ),
           ),
           IconButton(
             enableFeedback: false,
@@ -89,18 +80,11 @@ class _HomePageState extends State<HomePage> {
                 pageIndex = 1;
               });
             },
-            icon:
-                pageIndex == 1
-                    ? const Icon(
-                      Icons.add_circle_outline,
-                      color: Colors.red,
-                      size: 60,
-                    )
-                    : const Icon(
-                      Icons.add_circle_outline,
-                      color: Colors.red,
-                      size: 60,
-                    ),
+            icon: const Icon(
+              Icons.add_circle_outline,
+              color: Colors.red,
+              size: 60,
+            ),
           ),
           IconButton(
             enableFeedback: false,
@@ -109,34 +93,15 @@ class _HomePageState extends State<HomePage> {
                 pageIndex = 2;
               });
             },
-            icon:
-                pageIndex == 2
-                    ? const Icon(Icons.person, color: Colors.white, size: 35)
-                    : const Icon(
-                      Icons.person_outline,
-                      color: Colors.white,
-                      size: 35,
-                    ),
+            icon: pageIndex == 2
+                ? const Icon(Icons.person, color: Colors.white, size: 35)
+                : const Icon(
+                    Icons.person_outline,
+                    color: Colors.white,
+                    size: 35,
+                  ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class Home extends StatelessWidget {
-  const Home({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        "Video Content Here",
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 45,
-          fontWeight: FontWeight.w500,
-        ),
       ),
     );
   }
