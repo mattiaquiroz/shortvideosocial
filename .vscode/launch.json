@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-ShortvideoappApplication<shortvideoapp>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "io.github.mattiaquiroz.shortvideoapp.shortvideoapp.ShortvideoappApplication",
+            "projectName": "shortvideoapp",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

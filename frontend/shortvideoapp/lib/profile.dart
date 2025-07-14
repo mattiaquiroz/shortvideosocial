@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/settings.dart';
+import 'constants/strings.dart';
 
 class Profile extends StatelessWidget {
   const Profile({super.key});
@@ -7,7 +8,7 @@ class Profile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Profile',
+      title: AppStrings.profile,
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const ProfilePage(),
       debugShowCheckedModeBanner: false,
@@ -27,14 +28,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool showNameInAppBar = false;
   ScrollController _scrollController = ScrollController();
   GlobalKey _nameKey = GlobalKey();
-
-  final String name = "Mattia";
-  final String followers = "0";
-  final String following = "0";
-  final String totalLikes = "0";
-  final String bio =
-      "Software Programmer from Italy 🇮🇹\nLoves tech, travel, and coding.";
-  final String avatarUrl = "https://i.pravatar.cc/150?img=12";
 
   @override
   void initState() {
@@ -72,7 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          "Profile",
+          AppStrings.profile,
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -85,7 +78,7 @@ class _ProfilePageState extends State<ProfilePage> {
               opacity: showNameInAppBar ? 1.0 : 0.0,
               duration: Duration(milliseconds: 200),
               child: Text(
-                name,
+                AppStrings.userName,
                 style: TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -99,7 +92,7 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             icon: Icon(Icons.notifications, color: Colors.black),
             onPressed: () {
-              print("Hamburger menu pressed");
+              // Notifications functionality
             },
           ),
           IconButton(
@@ -138,7 +131,10 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           children: [
             SizedBox(height: 16),
-            CircleAvatar(radius: 60, backgroundImage: NetworkImage(avatarUrl)),
+            CircleAvatar(
+              radius: 60,
+              backgroundImage: NetworkImage(AppStrings.userAvatarUrl),
+            ),
             SizedBox(height: 16),
             Row(
               key: _nameKey,
@@ -146,7 +142,7 @@ class _ProfilePageState extends State<ProfilePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  name,
+                  AppStrings.userName,
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(width: 8),
@@ -166,7 +162,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             SizedBox(height: 8),
             Text(
-              "$followers Followers | $following Following | $totalLikes Likes",
+              "${AppStrings.userFollowers} ${AppStrings.followersLabel} | ${AppStrings.userFollowing} ${AppStrings.followingLabel} | ${AppStrings.userTotalLikes} ${AppStrings.likesLabel}",
               style: TextStyle(color: Colors.grey[700]),
             ),
             SizedBox(height: 8),
@@ -180,7 +176,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  bio,
+                  AppStrings.userBio,
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16),
                 ),
@@ -267,7 +263,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(32.0),
         child: Center(
           child: Text(
-            "No videos here yet.",
+            AppStrings.noVideosYet,
             style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ),
