@@ -21,21 +21,23 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       appBar: AppBar(
         title: Text(
           AppStrings.accountSettings,
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.keyboard_arrow_left, color: Colors.black, size: 30),
+          icon: const Icon(Icons.keyboard_arrow_left,
+              color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Profile Information Section
             _buildSection(AppStrings.profileInformation, [
@@ -45,8 +47,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 subtitle: username,
                 onTap: () =>
                     _showEditDialog(AppStrings.username, username, (value) {
-                      setState(() => username = value);
-                    }),
+                  setState(() => username = value);
+                }),
               ),
               _buildSettingItem(
                 icon: Icons.email,
@@ -70,7 +72,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               ),
             ]),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Privacy Section
             _buildSection(AppStrings.privacy, [
@@ -85,7 +87,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               ),
             ]),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Account Actions Section
             _buildSection(AppStrings.accountActions, [
@@ -119,7 +121,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           ),
         ),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: 16.0),
+          margin: const EdgeInsets.symmetric(horizontal: 16.0),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
@@ -143,24 +145,24 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               Icon(icon, color: Colors.grey[600], size: 24),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -184,24 +186,24 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           Icon(icon, color: Colors.grey[600], size: 24),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -232,7 +234,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           controller: controller,
           decoration: InputDecoration(
             labelText: title,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [

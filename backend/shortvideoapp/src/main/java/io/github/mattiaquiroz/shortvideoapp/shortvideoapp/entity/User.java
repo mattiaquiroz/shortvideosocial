@@ -60,6 +60,9 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Comment> comments;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CommentLike> commentLikes;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -190,5 +193,13 @@ public class User {
 
     public void setComments(List<Comment> comments) {
         this.comments = comments;
+    }
+
+    public List<CommentLike> getCommentLikes() {
+        return commentLikes;
+    }
+
+    public void setCommentLikes(List<CommentLike> commentLikes) {
+        this.commentLikes = commentLikes;
     }
 } 

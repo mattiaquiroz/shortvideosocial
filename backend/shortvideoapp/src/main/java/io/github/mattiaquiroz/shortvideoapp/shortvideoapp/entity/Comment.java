@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "comments")
@@ -18,6 +19,9 @@ public class Comment {
     @Size(max = 500, message = "Comment must not exceed 500 characters")
     private String text;
 
+    @Column(name = "likes_count")
+    private Integer likesCount = 0;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -31,6 +35,17 @@ public class Comment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "video_id", nullable = false)
     private Video video;
+
+    // Self-referencing for replies
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_comment_id")
+    private Comment parentComment;
+
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Comment> replies;
+
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CommentLike> likes;
 
     @PrePersist
     protected void onCreate() {
@@ -51,6 +66,13 @@ public class Comment {
         this.video = video;
     }
 
+    public Comment(String text, User user, Video video, Comment parentComment) {
+        this.text = text;
+        this.user = user;
+        this.video = video;
+        this.parentComment = parentComment;
+    }
+
     public Long getId() {
         return id;
     }
@@ -65,6 +87,14 @@ public class Comment {
 
     public void setText(String text) {
         this.text = text;
+    }
+
+    public Integer getLikesCount() {
+        return likesCount;
+    }
+
+    public void setLikesCount(Integer likesCount) {
+        this.likesCount = likesCount;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -97,5 +127,29 @@ public class Comment {
 
     public void setVideo(Video video) {
         this.video = video;
+    }
+
+    public Comment getParentComment() {
+        return parentComment;
+    }
+
+    public void setParentComment(Comment parentComment) {
+        this.parentComment = parentComment;
+    }
+
+    public List<Comment> getReplies() {
+        return replies;
+    }
+
+    public void setReplies(List<Comment> replies) {
+        this.replies = replies;
+    }
+
+    public List<CommentLike> getLikes() {
+        return likes;
+    }
+
+    public void setLikes(List<CommentLike> likes) {
+        this.likes = likes;
     }
 } 

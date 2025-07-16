@@ -20,21 +20,23 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
       appBar: AppBar(
         title: Text(
           AppStrings.screen,
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.keyboard_arrow_left, color: Colors.black, size: 30),
+          icon: const Icon(Icons.keyboard_arrow_left,
+              color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Display Section
             _buildSection(AppStrings.theme, [
@@ -76,7 +78,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
           ),
         ),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: 16.0),
+          margin: const EdgeInsets.symmetric(horizontal: 16.0),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
@@ -98,7 +100,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               Expanded(
@@ -107,13 +109,13 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -138,7 +140,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
     required ValueChanged<double> onChanged,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -150,13 +152,13 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -166,7 +168,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
               ),
               Text(
                 value.toStringAsFixed(0),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.blue,
@@ -174,7 +176,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Slider(
             value: value,
             min: min,
@@ -190,24 +192,24 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
   void _showThemeSelection() {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               AppStrings.selectTheme,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             _buildThemeOption(AppStrings.system, AppStrings.systemDesc),
             _buildThemeOption(AppStrings.light, AppStrings.lightDesc),
             _buildThemeOption(AppStrings.dark, AppStrings.darkDesc),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -219,7 +221,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
       title: Text(theme),
       subtitle: Text(description),
       trailing: selectedTheme == theme
-          ? Icon(Icons.check, color: Colors.blue)
+          ? const Icon(Icons.check, color: Colors.blue)
           : null,
       onTap: () {
         setState(() => selectedTheme = theme);

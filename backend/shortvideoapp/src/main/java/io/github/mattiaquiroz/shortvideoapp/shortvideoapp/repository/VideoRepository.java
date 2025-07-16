@@ -28,5 +28,11 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     @Query("SELECT v FROM Video v WHERE v.user.id = :userId ORDER BY v.createdAt DESC")
     Page<Video> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
     
+    @Query("SELECT v FROM Video v WHERE v.user.id = :userId AND v.isPublic = :isPublic ORDER BY v.createdAt DESC")
+    Page<Video> findByUserIdAndIsPublicOrderByCreatedAtDesc(@Param("userId") Long userId, @Param("isPublic") Boolean isPublic, Pageable pageable);
+    
+    @Query("SELECT v FROM Video v INNER JOIN Like l ON v.id = l.video.id WHERE l.user.id = :userId ORDER BY l.createdAt DESC")
+    Page<Video> findLikedVideosByUserId(@Param("userId") Long userId, Pageable pageable);
+    
     long countByUser(User user);
 } 

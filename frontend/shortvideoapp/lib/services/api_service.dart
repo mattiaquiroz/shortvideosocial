@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shortvideoapp/services/storage_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
@@ -239,16 +240,267 @@ class ApiService {
           Uri.parse('$baseUrl/videos?page=$page&size=$size&sortBy=$sortBy'),
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $token'
           },
         );
 
-        final data = jsonDecode(response.body);
+        // Decode response body as UTF-8 to make accents work
+        final String utf8Body = utf8.decode(response.bodyBytes);
+
+        final data = jsonDecode(utf8Body);
         return data;
       }
       return {'success': false, 'message': 'Token not found'};
     } catch (e) {
       print('getVideos error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get user's public videos
+  Future<Map<String, dynamic>> getUserPublicVideos({
+    required int userId,
+    required int page,
+    required int size,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token != null) {
+        final response = await http.get(
+          Uri.parse(
+              '$baseUrl/videos/user/$userId/public?page=$page&size=$size'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {'success': true, 'data': data};
+        } else {
+          return {'success': false, 'message': 'Failed to load videos'};
+        }
+      }
+      return {'success': false, 'message': 'Token not found'};
+    } catch (e) {
+      print('getUserPublicVideos error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get user's private videos
+  Future<Map<String, dynamic>> getUserPrivateVideos({
+    required int userId,
+    required int page,
+    required int size,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token != null) {
+        final response = await http.get(
+          Uri.parse(
+              '$baseUrl/videos/user/$userId/private?page=$page&size=$size'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {'success': true, 'data': data};
+        } else {
+          return {'success': false, 'message': 'Failed to load videos'};
+        }
+      }
+      return {'success': false, 'message': 'Token not found'};
+    } catch (e) {
+      print('getUserPrivateVideos error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get user's liked videos
+  Future<Map<String, dynamic>> getUserLikedVideos({
+    required int userId,
+    required int page,
+    required int size,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token != null) {
+        final response = await http.get(
+          Uri.parse('$baseUrl/videos/user/$userId/liked?page=$page&size=$size'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {'success': true, 'data': data};
+        } else {
+          return {'success': false, 'message': 'Failed to load videos'};
+        }
+      }
+      return {'success': false, 'message': 'Token not found'};
+    } catch (e) {
+      print('getUserLikedVideos error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Post comment to video
+  Future<Map<String, dynamic>> postComment(String videoId, String text,
+      {String? parentCommentId}) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final body = {'text': text};
+      if (parentCommentId != null) {
+        body['parentCommentId'] = parentCommentId;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/videos/$videoId/comments'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'comment': data['comment'],
+          'commentsCount': data['commentsCount'],
+          'message': data['message'] ?? 'Comment posted successfully',
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to post comment',
+        };
+      }
+    } catch (e) {
+      print('Post comment error: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Get video comments
+  Future<Map<String, dynamic>> getVideoComments(String videoId,
+      {int page = 0, int size = 20}) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/videos/$videoId/comments?page=$page&size=$size'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'comments': data['content'] ?? [],
+          'totalPages': data['totalPages'] ?? 0,
+          'totalElements': data['totalElements'] ?? 0,
+        };
+      } else {
+        return {'success': false, 'message': 'Failed to load comments'};
+      }
+    } catch (e) {
+      print('Get comments error: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Like/unlike comment
+  Future<Map<String, dynamic>> toggleCommentLike(String commentId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/videos/comments/$commentId/like'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'isLiked': data['isLiked'] ?? false,
+          'likesCount': data['likesCount'] ?? 0,
+          'message': data['message'] ?? 'Success',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to like comment',
+        };
+      }
+    } catch (e) {
+      print('Toggle comment like error: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Delete comment
+  Future<Map<String, dynamic>> deleteComment(
+      String commentId, String token) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/videos/comments/$commentId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': data['message'],
+          'commentsCount': data['commentsCount'],
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to delete comment'
+        };
+      }
+    } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
   }
@@ -286,20 +538,41 @@ class ApiService {
   }
 
   // Likes the video
-  Future<void> likeVideo(String videoId) async {
+  Future<Map<String, dynamic>> likeVideo(String videoId) async {
     try {
       final token = await _storageService.getToken();
-      if (token != null) {
-        await http.post(
-          Uri.parse('$baseUrl/videos/$videoId/like'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        );
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/videos/$videoId/like'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'isLiked': data['isLiked'] ?? false,
+          'likesCount': data['likesCount'] ?? 0,
+          'message': data['message'] ?? 'Success',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to like video',
+        };
       }
     } catch (e) {
       print('Like video error: $e');
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
     }
   }
 
@@ -330,6 +603,72 @@ class ApiService {
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
+    };
+  }
+
+  // Get auth token for video requests
+  Future<String?> getAuthToken() async {
+    return await _storageService.getToken();
+  }
+
+  // Get video streaming URL with authentication
+  Future<String> getVideoStreamingUrl(String videoId) async {
+    final token = await _storageService.getToken();
+    if (token == null) {
+      throw Exception('Authentication required');
+    }
+    return '$baseUrl/stream/video/$videoId';
+  }
+
+  // Get thumbnail URL with authentication
+  Future<String> getThumbnailUrl(String videoId) async {
+    final token = await _storageService.getToken();
+    if (token == null) {
+      throw Exception('Authentication required');
+    }
+    return '$baseUrl/stream/thumbnail/$videoId';
+  }
+
+  // Get profile image URL with authentication
+  Future<String> getProfileImageUrl(String? profilePictureUrl,
+      {String? userId}) async {
+    if (userId != null && userId.isNotEmpty) {
+      final token = await _storageService.getToken();
+      if (token != null) {
+        return '$baseUrl/stream/profile-image/$userId';
+      }
+    }
+
+    return "null";
+  }
+
+  // Get profile image URL for a specific user ID
+  Future<String> getProfileImageUrlForUser(String userId) async {
+    final token = await _storageService.getToken();
+    if (token == null) {
+      throw Exception('Authentication required');
+    }
+    return '$baseUrl/stream/profile-image/$userId';
+  }
+
+  // Get static asset URL
+  String getStaticAssetUrl(String assetPath) {
+    return 'http://10.0.2.2:8080/$assetPath';
+  }
+
+  // Get thumbnail image provider for a video
+  Future<ImageProvider> getThumbnailImageProvider(String videoId) async {
+    final url = await getThumbnailUrl(videoId);
+    return NetworkImage(url);
+  }
+
+  // Get authenticated headers for image requests
+  Future<Map<String, String>> getImageHeaders() async {
+    final token = await _storageService.getToken();
+    return {
+      'Authorization': 'Bearer $token',
+      'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
+      'Accept': 'image/*,*/*;q=0.9',
     };
   }
 }

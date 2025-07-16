@@ -1,136 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/services/video_player_service.dart';
-import 'package:shortvideoapp/screens/main/comments_section.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:video_player/video_player.dart';
+import 'package:shortvideoapp/screens/main/comments_section.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class SingleVideoPlayerScreen extends StatefulWidget {
+  final Map<String, dynamic> videoData;
+
+  const SingleVideoPlayerScreen({
+    Key? key,
+    required this.videoData,
+  }) : super(key: key);
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<SingleVideoPlayerScreen> createState() =>
+      _SingleVideoPlayerScreenState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
   final ApiService _apiService = ApiService();
   final EnhancedVideoService _videoService = EnhancedVideoService();
-  final PageController _pageController = PageController();
-
-  int selectedTab = 1;
-  List<Map<String, String>> videosData = [];
-  int currentVideoIndex = 0;
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVideos();
-  }
 
   @override
   void dispose() {
-    _pageController.dispose();
     _videoService.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadVideos() async {
-    try {
-      final response = await _apiService.getVideos(
-        page: 0,
-        size: 20, // Load more videos for better preloading
-        sortBy: selectedTab == 0 ? 'following' : 'popular',
-      );
-
-      if (response['content'] != null) {
-        setState(() {
-          videosData.clear();
-          for (var video in response['content']) {
-            final videoId = (video['id'] ?? '').toString();
-            if (videoId.isNotEmpty) {
-              videosData.add({
-                'id': videoId,
-                'userUsername': video['user']?['username'] ?? '',
-                'userProfilePictureUrl':
-                    video['user']?['profilePictureUrl'] ?? '',
-                'description': video['description'] ?? '',
-                'videoUrl': video['videoUrl'] ?? '',
-                'likesCount': (video['likesCount'] ?? 0).toString(),
-                'commentsCount': (video['commentsCount'] ?? 0).toString(),
-                'sharesCount': (video['sharesCount'] ?? 0).toString(),
-                'viewsCount': (video['viewsCount'] ?? 0).toString(),
-                'createdAt': video['createdAt'] ?? '',
-                'userId': (video['user']?['id'] ?? '').toString(),
-              });
-            }
-          }
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error loading videos: $e")),
-      );
-    }
-  }
-
-  Future<void> _onPageChanged(int index) async {
-    if (index != currentVideoIndex) {
-      // Pause all videos first
-      await _videoService.pauseAllVideos();
-
-      setState(() {
-        currentVideoIndex = index;
-      });
-
-      // Get URLs for preloading
-      final currentVideo = videosData[index];
-      final currentVideoId = currentVideo['id']!;
-      final currentVideoUrl =
-          await _apiService.getVideoStreamingUrl(currentVideoId);
-
-      // Preload next and previous videos
-      String? nextVideoId;
-      String? nextVideoUrl;
-      String? previousVideoId;
-      String? previousVideoUrl;
-
-      if (index + 1 < videosData.length) {
-        nextVideoId = videosData[index + 1]['id'];
-        nextVideoUrl = await _apiService.getVideoStreamingUrl(nextVideoId!);
-      }
-
-      if (index - 1 >= 0) {
-        previousVideoId = videosData[index - 1]['id'];
-        previousVideoUrl =
-            await _apiService.getVideoStreamingUrl(previousVideoId!);
-      }
-
-      // Get auth token for video requests
-      final authToken = await _apiService.getAuthToken();
-
-      // Preload videos for smooth scrolling
-      await _videoService.preloadVideos(
-        currentVideoId,
-        currentVideoUrl,
-        nextVideoId,
-        nextVideoUrl,
-        previousVideoId,
-        previousVideoUrl,
-        authToken: authToken,
-      );
-
-      // Auto-play current video after a short delay
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && currentVideoIndex == index) {
-          _videoService.playVideo(currentVideoId);
-        }
-      });
-    }
   }
 
   @override
@@ -140,74 +35,47 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTabButton(AppStrings.following, 0),
-            const SizedBox(width: 40),
-            _buildTabButton(AppStrings.forYou, 1),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Container(
         color: Colors.black,
-        child: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white))
-            : PageView.builder(
-                controller: _pageController,
-                scrollDirection: Axis.vertical,
-                itemCount: videosData.length,
-                onPageChanged: _onPageChanged,
-                itemBuilder: (context, index) {
-                  final video = videosData[index];
-                  return EnhancedVideoPlayer(
-                    videoId: video['id']!,
-                    videoData: video,
-                    apiService: _apiService,
-                    autoPlay: index == currentVideoIndex,
-                  );
-                },
-              ),
+        child: SingleEnhancedVideoPlayer(
+          videoId: widget.videoData['id']?.toString() ?? '',
+          videoData: _convertVideoData(widget.videoData),
+          apiService: _apiService,
+          autoPlay: true,
+        ),
       ),
     );
   }
 
-  Widget _buildTabButton(String title, int index) {
-    final isSelected = selectedTab == index;
-    return GestureDetector(
-      onTap: () => setState(() => selectedTab = index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.white70,
-              fontSize: 16,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            height: 2,
-            width: 40,
-            color: isSelected ? Colors.white : Colors.transparent,
-          ),
-        ],
-      ),
-    );
+  Map<String, String> _convertVideoData(Map<String, dynamic> videoData) {
+    return {
+      'id': (videoData['id'] ?? '').toString(),
+      'userUsername': videoData['user']?['username'] ?? '',
+      'userProfilePictureUrl': videoData['user']?['profilePictureUrl'] ?? '',
+      'description': videoData['description'] ?? '',
+      'videoUrl': videoData['videoUrl'] ?? '',
+      'likesCount': (videoData['likesCount'] ?? 0).toString(),
+      'commentsCount': (videoData['commentsCount'] ?? 0).toString(),
+      'sharesCount': (videoData['sharesCount'] ?? 0).toString(),
+      'viewsCount': (videoData['viewsCount'] ?? 0).toString(),
+      'createdAt': videoData['createdAt'] ?? '',
+      'userId': (videoData['user']?['id'] ?? '').toString(),
+    };
   }
 }
 
-class EnhancedVideoPlayer extends StatefulWidget {
+class SingleEnhancedVideoPlayer extends StatefulWidget {
   final String videoId;
   final Map<String, String> videoData;
   final ApiService apiService;
   final bool autoPlay;
 
-  const EnhancedVideoPlayer({
+  const SingleEnhancedVideoPlayer({
     Key? key,
     required this.videoId,
     required this.videoData,
@@ -216,11 +84,15 @@ class EnhancedVideoPlayer extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<EnhancedVideoPlayer> createState() => _EnhancedVideoPlayerState();
+  State<SingleEnhancedVideoPlayer> createState() =>
+      _SingleEnhancedVideoPlayerState();
 }
 
-class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
+class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
   final EnhancedVideoService _videoService = EnhancedVideoService();
+  final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
+
   bool _isInitialized = false;
   bool _hasError = false;
   String? _videoUrl;
@@ -229,6 +101,8 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
   bool _isDragging = false;
   bool _isDoubleSpeed = false;
   double _playbackSpeed = 1.0;
+  bool _isCommentFocused = false;
+  bool _isPostingComment = false;
 
   // Cache profile image data to prevent loading loop
   String? _profileImageUrl;
@@ -242,6 +116,18 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     _initializePlayer();
     _loadLikeStatus();
     _loadProfileImageData();
+
+    // Add comment focus listener
+    _commentFocusNode.addListener(() {
+      setState(() {
+        _isCommentFocused = _commentFocusNode.hasFocus;
+      });
+    });
+
+    // Add comment text listener for send button animation
+    _commentController.addListener(() {
+      setState(() {});
+    });
   }
 
   Future<void> _loadProfileImageData() async {
@@ -280,6 +166,8 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     if (controller != null) {
       controller.removeListener(() {});
     }
+    _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -448,143 +336,164 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     }
 
     final controller = _videoService.getControllerSync(widget.videoId);
-    return GestureDetector(
-      onTap: _togglePlayPause,
-      onDoubleTap: _likeVideo,
-      onLongPressStart: (_) => _onLongPressStart(),
-      onLongPressEnd: (_) => _onLongPressEnd(),
-      child: Container(
-        color: Colors.black,
-        child: Stack(
-          children: [
-            // Video Player
-            if (controller != null)
-              SizedBox.expand(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: controller.value.size.width,
-                    height: controller.value.size.height,
-                    child: VideoPlayer(controller),
-                  ),
-                ),
-              ),
-
-            // Play/Pause indicator
-            if (controller != null &&
-                !controller.value.isPlaying &&
-                !_isDragging)
-              Center(
-                child: Icon(
-                  Icons.play_arrow,
-                  color: Colors.white.withOpacity(0.7),
-                  size: 80,
-                ),
-              ),
-
-            // 2x Speed indicator
-            if (_isDoubleSpeed)
-              Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Text(
-                    '2x',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-            // Progress Bar (TikTok-style)
-            if (controller != null && controller.value.isInitialized)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildProgressBar(controller),
-              ),
-
-            // Video Controls Overlay
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: Column(
+    return Column(
+      children: [
+        // Video Area
+        Expanded(
+          child: GestureDetector(
+            onTap: _togglePlayPause,
+            onDoubleTap: _likeVideo,
+            onLongPressStart: (_) => _onLongPressStart(),
+            onLongPressEnd: (_) => _onLongPressEnd(),
+            child: Container(
+              color: Colors.black,
+              child: Stack(
                 children: [
-                  _buildActionButton(
-                    isVideoLiked[widget.videoId] == true
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    widget.videoData['likesCount']!,
-                    onTap: _likeVideo,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildActionButton(
-                    Icons.comment,
-                    widget.videoData['commentsCount']!,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => CommentsSection(
-                          videoId: widget.videoId,
-                          apiService: widget.apiService,
-                          isBottomSheet: true,
-                          onCommentCountChanged: (count) {
-                            setState(() {
-                              widget.videoData['commentsCount'] =
-                                  count.toString();
-                            });
+                  // Video Player
+                  if (controller != null)
+                    SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: controller.value.size.width,
+                          height: controller.value.size.height,
+                          child: VideoPlayer(controller),
+                        ),
+                      ),
+                    ),
+
+                  // Play/Pause indicator
+                  if (controller != null &&
+                      !controller.value.isPlaying &&
+                      !_isDragging)
+                    Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white.withOpacity(0.7),
+                        size: 80,
+                      ),
+                    ),
+
+                  // 2x Speed indicator
+                  if (_isDoubleSpeed)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Text(
+                          '2x',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Progress Bar (TikTok-style)
+                  if (controller != null && controller.value.isInitialized)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildProgressBar(controller),
+                    ),
+
+                  // Video Controls Overlay
+                  Positioned(
+                    bottom: 20,
+                    right: 20,
+                    child: Column(
+                      children: [
+                        _buildActionButton(
+                          isVideoLiked[widget.videoId] == true
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          widget.videoData['likesCount']!,
+                          onTap: _likeVideo,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildActionButton(
+                          Icons.comment,
+                          widget.videoData['commentsCount']!,
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => CommentsSection(
+                                videoId: widget.videoId,
+                                apiService: widget.apiService,
+                                isBottomSheet: true,
+                                onCommentCountChanged: (count) {
+                                  setState(() {
+                                    widget.videoData['commentsCount'] =
+                                        count.toString();
+                                  });
+                                },
+                              ),
+                            );
                           },
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _buildActionButton(
-                    Icons.share,
-                    widget.videoData['sharesCount']!,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildProfileButton(),
-                ],
-              ),
-            ),
-
-            // Video Info Overlay
-            Positioned(
-              bottom: 20,
-              left: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.videoData['userUsername']!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                        const SizedBox(height: 24),
+                        _buildActionButton(
+                          Icons.share,
+                          widget.videoData['sharesCount']!,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildProfileButton(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.videoData['description']!,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+
+                  // Video Info Overlay
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 100, // Leave space for action buttons
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.videoData['userUsername']!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.videoData['description']!,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 14),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+
+        // Comment Section
+        Container(
+          color: Colors.black,
+          padding: const EdgeInsets.all(16),
+          child: SafeArea(
+            top: false,
+            child: _buildCommentTextField(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -766,6 +675,107 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
         },
       ),
     );
+  }
+
+  Widget _buildCommentTextField() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: _isCommentFocused
+            ? Colors.black.withOpacity(0.8)
+            : Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: _isCommentFocused
+            ? Border.all(color: Colors.white.withOpacity(0.3), width: 1)
+            : null,
+      ),
+      child: TextField(
+        controller: _commentController,
+        focusNode: _commentFocusNode,
+        enabled: !_isPostingComment,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        maxLines: 1,
+        textInputAction: TextInputAction.send,
+        onSubmitted: (value) {
+          if (value.isNotEmpty && !_isPostingComment) {
+            _postComment();
+          }
+        },
+        decoration: InputDecoration(
+          hintText: AppStrings.addComment,
+          hintStyle:
+              TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          suffixIcon: AnimatedOpacity(
+            opacity: _commentController.text.isNotEmpty ? 1.0 : 0.5,
+            duration: const Duration(milliseconds: 200),
+            child: IconButton(
+              icon: _isPostingComment
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+              onPressed: _isPostingComment
+                  ? null
+                  : () {
+                      if (_commentController.text.isNotEmpty) {
+                        _postComment();
+                      }
+                    },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _postComment() async {
+    if (_isPostingComment) return; // Prevent multiple submissions
+
+    setState(() {
+      _isPostingComment = true;
+    });
+
+    // Post comment to API
+    final response = await widget.apiService.postComment(
+      widget.videoId,
+      _commentController.text,
+    );
+
+    setState(() {
+      _isPostingComment = false;
+    });
+
+    if (response['success']) {
+      // Update the comment count in the video data
+      widget.videoData['commentsCount'] = response['commentsCount'].toString();
+
+      // Clear the text field and unfocus
+      _commentController.clear();
+      _commentFocusNode.unfocus();
+
+      // Trigger a rebuild to update the UI
+      setState(() {});
+    } else {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Failed to post comment'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Stream<Duration> _getPositionStream(VideoPlayerController controller) async* {

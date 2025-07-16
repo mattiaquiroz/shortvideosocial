@@ -48,14 +48,15 @@ class _SettingsPageState extends State<SettingsPage> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.keyboard_arrow_left, color: Colors.black, size: 30),
+          icon: const Icon(Icons.keyboard_arrow_left,
+              color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Account Section
             _buildSection(AppStrings.account, [
@@ -63,7 +64,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 context,
                 icon: Icons.person,
                 title: AppStrings.accountSettings,
-                onTap: () => _navigateToPage(context, AccountSettingsPage()),
+                onTap: () =>
+                    _navigateToPage(context, const AccountSettingsPage()),
               ),
               _buildSettingItem(
                 context,
@@ -75,11 +77,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 context,
                 icon: Icons.notifications,
                 title: AppStrings.notifications,
-                onTap: () => _navigateToPage(context, NotificationsPage()),
+                onTap: () =>
+                    _navigateToPage(context, const NotificationsPage()),
               ),
             ]),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Content Section
             _buildSection(AppStrings.content, [
@@ -99,11 +102,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 context,
                 icon: Icons.dark_mode,
                 title: AppStrings.screen,
-                onTap: () => _navigateToPage(context, ScreenSettingsPage()),
+                onTap: () =>
+                    _navigateToPage(context, const ScreenSettingsPage()),
               ),
             ]),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Access Section
             _buildSection(AppStrings.access, [
@@ -154,7 +158,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: 16.0),
+          margin: const EdgeInsets.symmetric(horizontal: 16.0),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
@@ -177,15 +181,15 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
               Icon(icon, color: Colors.grey[600], size: 24),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
@@ -206,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             page is Widget ? page : _buildPlaceholderPage(page as String),
-        transitionDuration: Duration(milliseconds: 300),
+        transitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
           const end = Offset.zero;
@@ -232,7 +236,8 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         title: Text(
           title,
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -240,7 +245,7 @@ class _SettingsPageState extends State<SettingsPage> {
         centerTitle: false,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(
+            icon: const Icon(
               Icons.keyboard_arrow_left,
               color: Colors.black,
               size: 30,

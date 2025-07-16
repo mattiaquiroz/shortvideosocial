@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result['success']) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => MainApp()),
+        MaterialPageRoute(builder: (context) => const MainApp()),
         (route) => false,
       );
     } else {

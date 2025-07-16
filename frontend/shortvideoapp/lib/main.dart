@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:shortvideoapp/screens/main/home.dart';
 import 'services/localization_service.dart';
 import 'services/storage_service.dart';
 import 'screens/auth/login_screen.dart';
@@ -13,7 +13,7 @@ void main() async {
   // Initialize services
   await LocalizationService.initialize();
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Short Video App',
           theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Poppins'),
-          home: AuthChecker(),
+          home: const AuthChecker(),
           debugShowCheckedModeBanner: false,
         );
       },
@@ -69,7 +69,7 @@ class _AuthCheckerState extends State<AuthChecker> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return _isLoggedIn ? MainApp() : LoginScreen();
+    return _isLoggedIn ? const MainApp() : const LoginScreen();
   }
 }
 
@@ -86,7 +86,11 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
 
-  final List<Widget> _screens = [HomePage(), CreatePage(), ProfilePage()];
+  final List<Widget> _screens = [
+    const HomePage(),
+    const CreatePage(),
+    const ProfilePage()
+  ];
 
   @override
   void initState() {
@@ -123,7 +127,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     return Scaffold(
       body: PageView(
         controller: _pageController,
-        physics: NeverScrollableScrollPhysics(), // Disable swipe gestures
+        physics: const NeverScrollableScrollPhysics(), // Disable swipe gestures
         onPageChanged: (index) {
           // Only update state when page actually changes
           if (_currentIndex != index) {
@@ -160,9 +164,8 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                 ),
                 _buildCreateButton(),
                 _buildNavItem(
-                  icon: _currentIndex == 2
-                      ? Icons.person
-                      : Icons.person_outlined,
+                  icon:
+                      _currentIndex == 2 ? Icons.person : Icons.person_outlined,
                   label: 'Profile',
                   isActive: _currentIndex == 2,
                   onTap: () => _onItemTapped(2),

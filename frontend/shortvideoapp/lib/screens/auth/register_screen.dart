@@ -47,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (result['success']) {
       // Navigate to main app with navbar
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => MainApp()),
+        MaterialPageRoute(builder: (context) => const MainApp()),
         (route) => false,
       );
     } else {

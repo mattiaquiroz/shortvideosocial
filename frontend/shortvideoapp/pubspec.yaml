@@ -1,31 +1,28 @@
 name: shortvideoapp
-description: "A new Flutter project for a short video application."
-publish_to: 'none'
+description: A short video app Flutter project.
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=2.19.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-  video_player: ^2.8.1
-  http: ^1.2.1
-  shared_preferences: ^2.2.2
+  cupertino_icons: ^1.0.2
+  http: ^0.13.5
+  shared_preferences: ^2.0.15
   flutter_secure_storage: ^9.0.0
+  video_player: ^2.5.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.0
+
 
 flutter:
-
   uses-material-design: true
-  
-  assets:
-    - assets/videos/

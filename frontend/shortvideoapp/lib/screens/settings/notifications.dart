@@ -25,21 +25,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
       appBar: AppBar(
         title: Text(
           AppStrings.notifications,
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(Icons.keyboard_arrow_left, color: Colors.black, size: 30),
+          icon: const Icon(Icons.keyboard_arrow_left,
+              color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // General Section
             _buildSection(AppStrings.general, [
@@ -63,7 +65,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
             ]),
 
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             // Activity Section
             _buildSection(AppStrings.activity, [
@@ -135,7 +137,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ),
         ),
         Container(
-          margin: EdgeInsets.symmetric(horizontal: 16.0),
+          margin: const EdgeInsets.symmetric(horizontal: 16.0),
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
@@ -154,24 +156,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           Icon(icon, color: Colors.blue, size: 24),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
