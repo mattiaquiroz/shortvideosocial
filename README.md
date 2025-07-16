@@ -15,6 +15,8 @@ It is primarily for learning and testing purposes.
 
 ## Features (Planned / In Progress)
 
+- [ ] Upload short videos
+- [ ] Settings
 - [X] User registration and login
 - [X] Store video metadata in the database
 - [X] Stream uploaded videos via backend
@@ -22,8 +24,6 @@ It is primarily for learning and testing purposes.
 - [X] Likes and comments
 - [X] Basic video feed
 - [X] Video playback with controls
-- [ ] Upload short videos
-- [ ] Settings
 
 ---
 
