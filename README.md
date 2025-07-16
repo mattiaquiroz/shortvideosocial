@@ -49,7 +49,8 @@ It is primarily for learning and testing purposes.
 
 ### Backend
 ```bash
-# Ensure PostgreSQL is running and that you changed application-example.properties to application.properties with your db info
+# Ensure PostgreSQL is running
+# Change application-example.properties to application.properties with your db info
 # Run the Spring Boot application
 mvn spring-boot:run
 
