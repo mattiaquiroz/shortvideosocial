@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 public class VideoDTO {
     private Long id;
-    private String title;
     private String description;
     private String videoUrl;
     private String thumbnailUrl;
@@ -19,12 +18,11 @@ public class VideoDTO {
 
     public VideoDTO() {}
 
-    public VideoDTO(Long id, String title, String description, String videoUrl, 
+    public VideoDTO(Long id, String description, String videoUrl, 
                     String thumbnailUrl, Integer durationSeconds, Long viewsCount, 
                     Integer likesCount, Integer commentsCount, Integer sharesCount, 
                     Boolean isPublic, LocalDateTime createdAt, UserDTO user) {
         this.id = id;
-        this.title = title;
         this.description = description;
         this.videoUrl = videoUrl;
         this.thumbnailUrl = thumbnailUrl;
@@ -40,9 +38,6 @@ public class VideoDTO {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

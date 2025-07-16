@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shortvideoapp/services/storage_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
+import 'package:shortvideoapp/models/public_user_model.dart';
 
 class ApiService {
   static const String baseUrl = 'http://10.0.2.2:8080/api';
@@ -78,6 +79,128 @@ class ApiService {
         return {'success': false, 'message': data['message'] ?? 'Login failed'};
       }
     } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get current user profile from local storage
+  Future<User?> getCurrentUser() async {
+    try {
+      return await _storageService.getUser();
+    } catch (e) {
+      print('Get current user error: $e');
+      return null;
+    }
+  }
+
+  // Refresh current user profile from API and update local storage
+  Future<Map<String, dynamic>> refreshCurrentUser() async {
+    try {
+      final currentUser = await _storageService.getUser();
+      if (currentUser == null) {
+        return {'success': false, 'message': 'No user logged in'};
+      }
+
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/${currentUser.id}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final publicUserData = jsonDecode(response.body);
+
+        // Convert public user data back to User model (keeping email from local storage)
+        final updatedUser = User(
+          id: publicUserData['id'],
+          username: publicUserData['username'],
+          email: currentUser.email, // Keep email from local storage
+          fullName: publicUserData['fullName'],
+          profilePictureUrl: publicUserData['profilePictureUrl'],
+          bio: publicUserData['bio'],
+          followersCount: publicUserData['followersCount'] ?? 0,
+          followingCount: publicUserData['followingCount'] ?? 0,
+          createdAt: DateTime.parse(publicUserData['createdAt']),
+        );
+
+        // Update local storage with fresh data
+        await _storageService.saveUser(updatedUser);
+
+        return {'success': true, 'user': updatedUser};
+      } else if (response.statusCode == 404) {
+        return {'success': false, 'message': 'User not found'};
+      } else {
+        return {'success': false, 'message': 'Failed to refresh user profile'};
+      }
+    } catch (e) {
+      print('Refresh current user error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get user by ID (returns public profile without email)
+  Future<Map<String, dynamic>> getUserById(int userId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'user': PublicUser.fromJson(data)};
+      } else if (response.statusCode == 404) {
+        return {'success': false, 'message': 'User not found'};
+      } else {
+        return {'success': false, 'message': 'Failed to load user profile'};
+      }
+    } catch (e) {
+      print('Get user by ID error: $e');
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get user by username (returns public profile without email)
+  Future<Map<String, dynamic>> getUserByUsername(String username) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/username/$username'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'user': PublicUser.fromJson(data)};
+      } else if (response.statusCode == 404) {
+        return {'success': false, 'message': 'User not found'};
+      } else {
+        return {'success': false, 'message': 'Failed to load user profile'};
+      }
+    } catch (e) {
+      print('Get user by username error: $e');
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
   }

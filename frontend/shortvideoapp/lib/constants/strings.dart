@@ -90,13 +90,7 @@ class AppStrings {
   });
 
   // Profile specific (Temporary)
-  static const String userName = "John Doe";
-  static const String userFollowers = "0";
-  static const String userFollowing = "0";
   static const String userTotalLikes = "0";
-  static const String userBio =
-      "Software Programmer\nLoves tech, travel, and coding.";
-  static const String userAvatarUrl = "https://i.pravatar.cc/150?img=12";
 
   // Profile UI
   static String get followersLabel => LocalizationService.translate({

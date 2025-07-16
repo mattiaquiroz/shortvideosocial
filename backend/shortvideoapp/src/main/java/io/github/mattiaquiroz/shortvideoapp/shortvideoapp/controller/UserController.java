@@ -1,5 +1,6 @@
 package io.github.mattiaquiroz.shortvideoapp.shortvideoapp.controller;
 
+import io.github.mattiaquiroz.shortvideoapp.shortvideoapp.dto.PublicUserDTO;
 import io.github.mattiaquiroz.shortvideoapp.shortvideoapp.dto.UpdateUserRequest;
 import io.github.mattiaquiroz.shortvideoapp.shortvideoapp.dto.UserDTO;
 import io.github.mattiaquiroz.shortvideoapp.shortvideoapp.entity.User;
@@ -35,10 +36,10 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieve a user by their ID")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<PublicUserDTO> getUserById(@PathVariable Long id) {
         Optional<User> user = userRepository.findById(id);
         if (user.isPresent()) {
-            return ResponseEntity.ok(convertToDTO(user.get()));
+            return ResponseEntity.ok(convertToPublicDTO(user.get()));
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -46,10 +47,10 @@ public class UserController {
 
     @GetMapping("/username/{username}")
     @Operation(summary = "Get user by username", description = "Retrieve a user by their username")
-    public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<PublicUserDTO> getUserByUsername(@PathVariable String username) {
         Optional<User> user = userRepository.findByUsername(username);
         if (user.isPresent()) {
-            return ResponseEntity.ok(convertToDTO(user.get()));
+            return ResponseEntity.ok(convertToPublicDTO(user.get()));
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -99,20 +100,20 @@ public class UserController {
 
     @GetMapping("/search")
     @Operation(summary = "Search users", description = "Search users by username or full name")
-    public ResponseEntity<List<UserDTO>> searchUsers(@RequestParam String query) {
+    public ResponseEntity<List<PublicUserDTO>> searchUsers(@RequestParam String query) {
         List<User> users = userRepository.searchUsers(query);
-        List<UserDTO> userDTOs = users.stream()
-                .map(this::convertToDTO)
+        List<PublicUserDTO> userDTOs = users.stream()
+                .map(this::convertToPublicDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userDTOs);
     }
 
     @GetMapping("/top")
     @Operation(summary = "Get top users", description = "Get users with most followers")
-    public ResponseEntity<List<UserDTO>> getTopUsers() {
+    public ResponseEntity<List<PublicUserDTO>> getTopUsers() {
         List<User> users = userRepository.findTopUsers();
-        List<UserDTO> userDTOs = users.stream()
-                .map(this::convertToDTO)
+        List<PublicUserDTO> userDTOs = users.stream()
+                .map(this::convertToPublicDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userDTOs);
     }
@@ -122,6 +123,19 @@ public class UserController {
             user.getId(),
             user.getUsername(),
             user.getEmail(),
+            user.getFullName(),
+            user.getProfilePictureUrl(),
+            user.getBio(),
+            user.getFollowersCount(),
+            user.getFollowingCount(),
+            user.getCreatedAt()
+        );
+    }
+
+    private PublicUserDTO convertToPublicDTO(User user) {
+        return new PublicUserDTO(
+            user.getId(),
+            user.getUsername(),
             user.getFullName(),
             user.getProfilePictureUrl(),
             user.getBio(),

@@ -98,7 +98,6 @@ public class VideoController {
         }
 
         Video video = new Video();
-        video.setTitle(request.getTitle());
         video.setDescription(request.getDescription());
         video.setVideoUrl(request.getVideoUrl());
         video.setThumbnailUrl(request.getThumbnailUrl());
@@ -119,7 +118,6 @@ public class VideoController {
         }
 
         Video video = existingVideo.get();
-        video.setTitle(request.getTitle());
         video.setDescription(request.getDescription());
         video.setVideoUrl(request.getVideoUrl());
         video.setThumbnailUrl(request.getThumbnailUrl());
@@ -242,7 +240,6 @@ public class VideoController {
 
         return new VideoDTO(
             video.getId(),
-            video.getTitle(),
             video.getDescription(),
             video.getVideoUrl(),
             video.getThumbnailUrl(),

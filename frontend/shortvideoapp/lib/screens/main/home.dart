@@ -128,6 +128,47 @@ class _HomePageState extends State<HomePage> {
     return currentVideo['userUsername']!;
   }
 
+  ImageProvider _getVideoUploaderProfileImage() {
+    Map<String, String> currentVideo = selectedTab == 0
+        ? currentFollowingVideo
+        : currentForYouVideo;
+
+    String profileUrl = currentVideo['userProfilePictureUrl'] ?? '';
+
+    // If no profile picture, use default avatar from server
+    if (profileUrl.isEmpty) {
+      return NetworkImage(
+        'http://10.0.2.2:8080/assets/users/default_picture.jpg',
+      );
+    }
+
+    // Check if it's a proper HTTP/HTTPS URL
+    if (profileUrl.startsWith('http://') || profileUrl.startsWith('https://')) {
+      return NetworkImage(profileUrl);
+    }
+
+    // Check if it's a file path that should be converted to a server URL
+    if (profileUrl.startsWith('file:///') || profileUrl.startsWith('assets/')) {
+      // Convert file path to server URL
+      String cleanPath = profileUrl
+          .replaceFirst('file:///', '')
+          .replaceFirst('file://', '');
+
+      // Ensure the path starts with assets/
+      if (!cleanPath.startsWith('assets/')) {
+        cleanPath = 'assets/$cleanPath';
+      }
+
+      final serverUrl = 'http://10.0.2.2:8080/$cleanPath';
+      return NetworkImage(serverUrl);
+    }
+
+    // For any other format, use default avatar
+    return NetworkImage(
+      'http://10.0.2.2:8080/assets/users/default_picture.jpg',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -428,7 +469,7 @@ class _HomePageState extends State<HomePage> {
         ),
         child: CircleAvatar(
           radius: 22,
-          backgroundImage: NetworkImage(AppStrings.userAvatarUrl),
+          backgroundImage: _getVideoUploaderProfileImage(),
         ),
       ),
     );
@@ -550,6 +591,8 @@ class _HomePageState extends State<HomePage> {
               videosData.add({
                 'id': videoId,
                 'userUsername': video['user']?['username'] ?? '',
+                'userProfilePictureUrl':
+                    video['user']?['profilePictureUrl'] ?? '',
                 'description': video['description'] ?? '',
                 'videoUrl': video['videoUrl'] ?? '',
                 'likesCount': (video['likesCount'] ?? 0).toString(),

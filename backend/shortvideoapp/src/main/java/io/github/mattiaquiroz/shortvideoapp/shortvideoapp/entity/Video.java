@@ -14,11 +14,6 @@ public class Video {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    @NotBlank(message = "Title is required")
-    @Size(max = 100, message = "Title must not exceed 100 characters")
-    private String title;
-
     @Column(length = 500)
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
@@ -77,8 +72,7 @@ public class Video {
 
     public Video() {}
 
-    public Video(String title, String description, String videoUrl, User user) {
-        this.title = title;
+    public Video(String description, String videoUrl, User user) {
         this.description = description;
         this.videoUrl = videoUrl;
         this.user = user;
@@ -90,14 +84,6 @@ public class Video {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
     }
 
     public String getDescription() {

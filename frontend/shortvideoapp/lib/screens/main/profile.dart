@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/screens/settings/settings.dart';
 import 'package:shortvideoapp/constants/strings.dart';
+import 'package:shortvideoapp/services/api_service.dart';
+import 'package:shortvideoapp/models/user_model.dart';
 
 class Profile extends StatelessWidget {
   const Profile({super.key});
@@ -28,11 +30,17 @@ class _ProfilePageState extends State<ProfilePage> {
   bool showNameInAppBar = false;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _nameKey = GlobalKey();
+  final ApiService _apiService = ApiService();
+
+  User? currentUser;
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadUserProfile();
   }
 
   @override
@@ -40,6 +48,46 @@ class _ProfilePageState extends State<ProfilePage> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      // First try to get user from local storage for immediate display
+      final localUser = await _apiService.getCurrentUser();
+      if (localUser != null) {
+        setState(() {
+          currentUser = localUser;
+          isLoading = false;
+        });
+      }
+
+      // Then refresh from API to get latest data
+      final result = await _apiService.refreshCurrentUser();
+      if (result['success']) {
+        setState(() {
+          currentUser = result['user'];
+          isLoading = false;
+        });
+      } else {
+        // If refresh fails but we have local data, just use that
+        if (localUser == null) {
+          setState(() {
+            errorMessage = result['message'] ?? 'Failed to load user profile';
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error loading profile: ${e.toString()}';
+        isLoading = false;
+      });
+    }
   }
 
   void _onScroll() {
@@ -56,6 +104,41 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     }
+  }
+
+  ImageProvider _getProfileImage() {
+    String profileUrl = currentUser?.profilePictureUrl ?? "";
+
+    if (profileUrl.isEmpty) {
+      final defaultUrl =
+          'http://10.0.2.2:8080/assets/users/default_picture.jpg';
+      return NetworkImage(defaultUrl);
+    }
+
+    // Check if it's a proper HTTP/HTTPS URL
+    if (profileUrl.startsWith('http://') || profileUrl.startsWith('https://')) {
+      return NetworkImage(profileUrl);
+    }
+
+    // Check if it's a file path that should be converted to a server URL
+    if (profileUrl.startsWith('file:///') || profileUrl.startsWith('assets/')) {
+      // Convert file path to server URL
+      String cleanPath = profileUrl
+          .replaceFirst('file:///', '')
+          .replaceFirst('file://', '');
+
+      // Ensure the path starts with assets/
+      if (!cleanPath.startsWith('assets/')) {
+        cleanPath = 'assets/$cleanPath';
+      }
+
+      final serverUrl = 'http://10.0.2.2:8080/$cleanPath';
+      return NetworkImage(serverUrl);
+    }
+
+    // For any other format, use default avatar
+    final defaultUrl = 'http://10.0.2.2:8080/assets/users/default_picture.jpg';
+    return NetworkImage(defaultUrl);
   }
 
   @override
@@ -77,7 +160,7 @@ class _ProfilePageState extends State<ProfilePage> {
               opacity: showNameInAppBar ? 1.0 : 0.0,
               duration: Duration(milliseconds: 200),
               child: Text(
-                AppStrings.userName,
+                currentUser?.username ?? "null",
                 style: TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -125,88 +208,115 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          children: [
-            SizedBox(height: 16),
-            CircleAvatar(
-              radius: 60,
-              backgroundImage: NetworkImage(AppStrings.userAvatarUrl),
-            ),
-            SizedBox(height: 16),
-            Row(
-              key: _nameKey,
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  AppStrings.userName,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.edit, color: Colors.white),
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.all<Color>(
-                      Colors.black,
-                    ),
-                    padding: WidgetStateProperty.all<EdgeInsets>(
-                      EdgeInsets.all(8),
-                    ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, size: 48, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text(errorMessage!, style: TextStyle(color: Colors.red)),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadUserProfile,
+                    child: Text('Retry'),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              "${AppStrings.userFollowers} ${AppStrings.followersLabel} | ${AppStrings.userFollowing} ${AppStrings.followingLabel} | ${AppStrings.userTotalLikes} ${AppStrings.likesLabel}",
-              style: TextStyle(color: Colors.grey[700]),
-            ),
-            SizedBox(height: 8),
-            Card(
-              color: const Color.fromARGB(255, 248, 248, 248),
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                ],
               ),
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  AppStrings.userBio,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
+            )
+          : RefreshIndicator(
+              backgroundColor: Colors.white,
+              onRefresh: _loadUserProfile,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  children: [
+                    SizedBox(height: 16),
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundImage: _getProfileImage(),
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      key: _nameKey,
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          currentUser?.fullName ??
+                              currentUser?.username ??
+                              "null",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {},
+                          icon: Icon(Icons.edit, color: Colors.white),
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all<Color>(
+                              Colors.black,
+                            ),
+                            padding: WidgetStateProperty.all<EdgeInsets>(
+                              EdgeInsets.all(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      "${currentUser?.followersCount ?? 0} ${AppStrings.followersLabel} | ${currentUser?.followingCount ?? 0} ${AppStrings.followingLabel} | ${AppStrings.userTotalLikes} ${AppStrings.likesLabel}",
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    SizedBox(height: 8),
+                    Card(
+                      color: const Color.fromARGB(255, 248, 248, 248),
+                      margin: EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          currentUser?.bio ?? "",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+
+                    // Tab selector
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildTabIcon(Icons.grid_on, 0),
+                        SizedBox(width: 50),
+                        _buildTabIcon(Icons.lock, 1),
+                        SizedBox(width: 50),
+                        _buildTabIcon(Icons.favorite, 2),
+                      ],
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Dynamic grid content
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 0.0),
+                      child: _buildGridContent(),
+                    ),
+
+                    SizedBox(height: 16),
+                  ],
                 ),
               ),
             ),
-            SizedBox(height: 24),
-
-            // Tab selector
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildTabIcon(Icons.grid_on, 0),
-                SizedBox(width: 50),
-                _buildTabIcon(Icons.lock, 1),
-                SizedBox(width: 50),
-                _buildTabIcon(Icons.favorite, 2),
-              ],
-            ),
-
-            SizedBox(height: 16),
-
-            // Dynamic grid content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0.0),
-              child: _buildGridContent(),
-            ),
-
-            SizedBox(height: 16),
-          ],
-        ),
-      ),
     );
   }
 

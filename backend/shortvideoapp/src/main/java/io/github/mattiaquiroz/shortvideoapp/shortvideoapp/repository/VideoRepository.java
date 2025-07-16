@@ -22,7 +22,7 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     
     Page<Video> findByIsPublicTrueOrderByLikesCountDesc(Pageable pageable);
     
-    @Query("SELECT v FROM Video v WHERE v.isPublic = true AND (v.title LIKE %:query% OR v.description LIKE %:query%)")
+    @Query("SELECT v FROM Video v WHERE v.isPublic = true AND (v.description LIKE %:query% OR v.description LIKE %:query%)")
     Page<Video> searchPublicVideos(@Param("query") String query, Pageable pageable);
     
     @Query("SELECT v FROM Video v WHERE v.user.id = :userId ORDER BY v.createdAt DESC")
