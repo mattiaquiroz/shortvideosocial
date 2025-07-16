@@ -31,7 +31,6 @@ It is primarily for learning and testing purposes.
 
 - Spring Boot (Java)
 - PostgreSQL
-- Maven for dependency management
 - Local file system used for storing video files
 
 ---
