@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shortvideoapp/settings.dart';
-import 'constants/strings.dart';
+import 'package:shortvideoapp/screens/settings/settings.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class Profile extends StatelessWidget {
   const Profile({super.key});
@@ -26,8 +26,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   int selectedTab = 0;
   bool showNameInAppBar = false;
-  ScrollController _scrollController = ScrollController();
-  GlobalKey _nameKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _nameKey = GlobalKey();
 
   @override
   void initState() {
@@ -48,7 +48,6 @@ class _ProfilePageState extends State<ProfilePage> {
           _nameKey.currentContext!.findRenderObject() as RenderBox;
       final namePosition = nameBox.localToGlobal(Offset.zero);
 
-      // Check if the name has scrolled past the AppBar (approximately 100 pixels from top)
       final shouldShowName = namePosition.dy < 75;
 
       if (shouldShowName != showNameInAppBar) {
@@ -245,7 +244,8 @@ class _ProfilePageState extends State<ProfilePage> {
       // Public videos
       images = List.generate(
         26,
-        (i) => 'https://picsum.photos/id/${i + 30}/300/500',
+        (i) =>
+            'https://picsum.photos/id/${i + 30}/300/500', // TODO: Change to actual videos
       );
     } else if (selectedTab == 1) {
       // Private videos - empty
@@ -254,7 +254,8 @@ class _ProfilePageState extends State<ProfilePage> {
       // Liked videos
       images = List.generate(
         4,
-        (i) => 'https://picsum.photos/id/${i + 100}/300/500',
+        (i) =>
+            'https://picsum.photos/id/${i + 100}/300/500', // TODO: Change to actual videos
       );
     }
 

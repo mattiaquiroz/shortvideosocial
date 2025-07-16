@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -19,7 +20,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          "Account Settings",
+          AppStrings.accountSettings,
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -36,43 +37,47 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           children: [
             SizedBox(height: 20),
 
-            // Profile Section
-            _buildSection("Profile Information", [
-              _buildEditableItem(
+            // Profile Information Section
+            _buildSection(AppStrings.profileInformation, [
+              _buildSettingItem(
                 icon: Icons.person,
-                title: "Username",
-                value: username,
-                onTap: () => _showEditDialog("Username", username, (value) {
-                  setState(() => username = value);
-                }),
+                title: AppStrings.username,
+                subtitle: username,
+                onTap: () =>
+                    _showEditDialog(AppStrings.username, username, (value) {
+                      setState(() => username = value);
+                    }),
               ),
-              _buildEditableItem(
+              _buildSettingItem(
                 icon: Icons.email,
-                title: "Email",
-                value: email,
-                onTap: () => _showEditDialog("Email", email, (value) {
+                title: AppStrings.email,
+                subtitle: email,
+                onTap: () => _showEditDialog(AppStrings.email, email, (value) {
                   setState(() => email = value);
                 }),
               ),
-              _buildEditableItem(
+              _buildSettingItem(
                 icon: Icons.phone,
-                title: "Phone Number",
-                value: phoneNumber,
-                onTap: () =>
-                    _showEditDialog("Phone Number", phoneNumber, (value) {
-                      setState(() => phoneNumber = value);
-                    }),
+                title: AppStrings.phoneNumber,
+                subtitle: phoneNumber,
+                onTap: () => _showEditDialog(
+                  AppStrings.phoneNumber,
+                  phoneNumber,
+                  (value) {
+                    setState(() => phoneNumber = value);
+                  },
+                ),
               ),
             ]),
 
             SizedBox(height: 30),
 
             // Privacy Section
-            _buildSection("Privacy", [
+            _buildSection(AppStrings.privacy, [
               _buildSwitchItem(
                 icon: Icons.lock,
-                title: "Private Account",
-                subtitle: "Only people you approve can see your videos",
+                title: AppStrings.privateAccount,
+                subtitle: AppStrings.privateAccountDesc,
                 value: isPrivateAccount,
                 onChanged: (value) {
                   setState(() => isPrivateAccount = value);
@@ -82,18 +87,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
             SizedBox(height: 30),
 
-            // Actions Section
-            _buildSection("Account Actions", [
-              _buildActionItem(
+            // Account Actions Section
+            _buildSection(AppStrings.accountActions, [
+              _buildSettingItem(
                 icon: Icons.delete_forever,
-                title: "Delete Account",
-                subtitle: "Permanently delete your account",
-                onTap: () => _showDeleteAccountDialog(),
+                title: AppStrings.deleteAccount,
+                subtitle: AppStrings.deleteAccountDesc,
+                onTap: () => _showDeleteAccountDialog(context),
                 isDestructive: true,
               ),
             ]),
-
-            SizedBox(height: 50),
           ],
         ),
       ),
@@ -127,11 +130,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
-  Widget _buildEditableItem({
+  Widget _buildSettingItem({
     required IconData icon,
     required String title,
-    required String value,
+    required String subtitle,
     required VoidCallback onTap,
+    bool isDestructive = false,
   }) {
     return Material(
       color: Colors.transparent,
@@ -158,7 +162,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      value,
+                      subtitle,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
@@ -211,56 +215,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
-  Widget _buildActionItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isDestructive ? Colors.red : Colors.grey[600],
-                size: 24,
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: isDestructive ? Colors.red : Colors.black,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showEditDialog(
     String title,
     String currentValue,
@@ -273,7 +227,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Edit $title"),
+        title: Text("${AppStrings.edit} $title"),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -284,14 +238,14 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
+            child: Text(AppStrings.cancel),
           ),
           TextButton(
             onPressed: () {
               onSave(controller.text);
               Navigator.pop(context);
             },
-            child: Text("Save"),
+            child: Text(AppStrings.save),
           ),
         ],
       ),
@@ -307,36 +261,34 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("OK"),
+            child: Text(AppStrings.ok),
           ),
         ],
       ),
     );
   }
 
-  void _showDeleteAccountDialog() {
+  void _showDeleteAccountDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Delete Account"),
-        content: Text(
-          "Are you sure you want to delete your account? This action cannot be undone.",
-        ),
+        title: Text(AppStrings.deleteAccount),
+        content: Text(AppStrings.deleteAccountConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
+            child: Text(AppStrings.cancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _showInfoDialog(
-                "Account Deleted",
-                "Your account has been deleted successfully.",
+                AppStrings.accountDeleted,
+                AppStrings.accountDeletedDesc,
               );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text("Delete"),
+            child: Text(AppStrings.delete),
           ),
         ],
       ),

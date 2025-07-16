@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shortvideoapp/settings_pages/account_settings.dart';
-import 'package:shortvideoapp/settings_pages/notifications.dart';
-import 'package:shortvideoapp/settings_pages/screen_settings.dart';
+import 'package:shortvideoapp/screens/settings/account_settings.dart';
+import 'package:shortvideoapp/screens/settings/notifications.dart';
+import 'package:shortvideoapp/screens/settings/screen_settings.dart';
+import 'package:shortvideoapp/services/api_service.dart';
+import 'package:shortvideoapp/screens/auth/login_screen.dart';
+import 'package:shortvideoapp/screens/settings/language_selection_screen.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class Settings extends StatelessWidget {
   const Settings({super.key});
@@ -16,8 +20,16 @@ class Settings extends StatelessWidget {
   }
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final ApiService _apiService = ApiService();
+  bool _isLoggingOut = false;
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +37,11 @@ class SettingsPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          "Settings",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          AppStrings.settings,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -43,23 +58,23 @@ class SettingsPage extends StatelessWidget {
             SizedBox(height: 20),
 
             // Account Section
-            _buildSection("Account", [
+            _buildSection(AppStrings.account, [
               _buildSettingItem(
                 context,
                 icon: Icons.person,
-                title: "Account Settings",
+                title: AppStrings.accountSettings,
                 onTap: () => _navigateToPage(context, AccountSettingsPage()),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.security,
-                title: "Privacy & Security",
+                title: AppStrings.privacySecurity,
                 onTap: () => _navigateToPage(context, "Privacy & Security"),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.notifications,
-                title: "Notifications",
+                title: AppStrings.notifications,
                 onTap: () => _navigateToPage(context, NotificationsPage()),
               ),
             ]),
@@ -67,23 +82,23 @@ class SettingsPage extends StatelessWidget {
             SizedBox(height: 30),
 
             // Content Section
-            _buildSection("Content", [
+            _buildSection(AppStrings.content, [
               _buildSettingItem(
                 context,
                 icon: Icons.video_library,
-                title: "Content Preferences",
+                title: AppStrings.contentPreferences,
                 onTap: () => _navigateToPage(context, "Content Preferences"),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.language,
-                title: "Language",
-                onTap: () => _navigateToPage(context, "Language"),
+                title: AppStrings.language,
+                onTap: () => _navigateToLanguageSelection(context),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.dark_mode,
-                title: "Screen",
+                title: AppStrings.screen,
                 onTap: () => _navigateToPage(context, ScreenSettingsPage()),
               ),
             ]),
@@ -91,30 +106,30 @@ class SettingsPage extends StatelessWidget {
             SizedBox(height: 30),
 
             // Access Section
-            _buildSection("Access", [
+            _buildSection(AppStrings.access, [
               _buildSettingItem(
                 context,
                 icon: Icons.accessibility,
-                title: "Accessibility",
+                title: AppStrings.accessibility,
                 onTap: () => _navigateToPage(context, "Accessibility"),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.block,
-                title: "Blocked Users",
+                title: AppStrings.blockedUsers,
                 onTap: () => _navigateToPage(context, "Blocked Users"),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.report,
-                title: "Report Problem",
+                title: AppStrings.reportProblem,
                 onTap: () => _navigateToPage(context, "Report Problem"),
               ),
               _buildSettingItem(
                 context,
                 icon: Icons.logout,
-                title: "Logout",
-                onTap: () => _navigateToPage(context, "Logout"),
+                title: _isLoggingOut ? AppStrings.loading : AppStrings.logout,
+                onTap: _isLoggingOut ? () {} : () => _logout(),
               ),
             ]),
           ],
@@ -241,5 +256,40 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _navigateToLanguageSelection(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LanguageSelectionScreen()),
+    );
+
+    // If language was changed, rebuild the settings page
+    if (result == true) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _logout() async {
+    setState(() => _isLoggingOut = true);
+
+    try {
+      await _apiService.logout();
+
+      // Navigate to login screen
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      setState(() => _isLoggingOut = false);
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logout failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

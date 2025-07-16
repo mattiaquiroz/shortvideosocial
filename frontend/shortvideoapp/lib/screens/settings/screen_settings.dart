@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class ScreenSettingsPage extends StatefulWidget {
   const ScreenSettingsPage({super.key});
@@ -18,7 +19,7 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          "Screen",
+          AppStrings.screen,
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -36,15 +37,15 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
             SizedBox(height: 20),
 
             // Display Section
-            _buildSection("Theme", [
+            _buildSection(AppStrings.theme, [
               _buildSelectionItem(
-                title: "Theme Mode",
+                title: AppStrings.themeMode,
                 subtitle: selectedTheme,
                 onTap: () => _showThemeSelection(),
               ),
               _buildSliderItem(
-                title: "Font Size",
-                subtitle: "Adjust text size",
+                title: AppStrings.fontSize,
+                subtitle: AppStrings.fontSizeDesc,
                 value: fontSize,
                 min: 12.0,
                 max: 24.0,
@@ -199,13 +200,13 @@ class _ScreenSettingsPageState extends State<ScreenSettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Select Theme",
+              AppStrings.selectTheme,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 20),
-            _buildThemeOption("System", "Follow system settings"),
-            _buildThemeOption("Light", "Light theme"),
-            _buildThemeOption("Dark", "Dark theme"),
+            _buildThemeOption(AppStrings.system, AppStrings.systemDesc),
+            _buildThemeOption(AppStrings.light, AppStrings.lightDesc),
+            _buildThemeOption(AppStrings.dark, AppStrings.darkDesc),
             SizedBox(height: 20),
           ],
         ),

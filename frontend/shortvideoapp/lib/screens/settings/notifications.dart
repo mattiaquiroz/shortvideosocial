@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -23,7 +24,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          "Notifications",
+          AppStrings.notifications,
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -40,19 +41,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
           children: [
             SizedBox(height: 20),
 
-            // General Settings
-            _buildSection("General", [
+            // General Section
+            _buildSection(AppStrings.general, [
               _buildSwitchItem(
-                title: "Push Notifications",
-                subtitle: "Receive notifications on your device",
+                icon: Icons.notifications,
+                title: AppStrings.pushNotifications,
+                subtitle: AppStrings.pushNotificationsDesc,
                 value: pushNotifications,
                 onChanged: (value) {
                   setState(() => pushNotifications = value);
                 },
               ),
               _buildSwitchItem(
-                title: "Email Notifications",
-                subtitle: "Receive notifications via email",
+                icon: Icons.email,
+                title: AppStrings.emailNotifications,
+                subtitle: AppStrings.emailNotificationsDesc,
                 value: emailNotifications,
                 onChanged: (value) {
                   setState(() => emailNotifications = value);
@@ -62,51 +65,54 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
             SizedBox(height: 30),
 
-            // Activity Notifications
-            _buildSection("Activity", [
+            // Activity Section
+            _buildSection(AppStrings.activity, [
               _buildSwitchItem(
-                title: "Likes",
-                subtitle: "When someone likes your video",
+                icon: Icons.favorite,
+                title: AppStrings.likesNotification,
+                subtitle: AppStrings.likesNotificationDesc,
                 value: likesNotifications,
                 onChanged: (value) {
                   setState(() => likesNotifications = value);
                 },
               ),
               _buildSwitchItem(
-                title: "Comments",
-                subtitle: "When someone comments on your video",
+                icon: Icons.comment,
+                title: AppStrings.commentsNotification,
+                subtitle: AppStrings.commentsNotificationDesc,
                 value: commentsNotifications,
                 onChanged: (value) {
                   setState(() => commentsNotifications = value);
                 },
               ),
               _buildSwitchItem(
-                title: "New Followers",
-                subtitle: "When someone follows you",
+                icon: Icons.person_add,
+                title: AppStrings.newFollowers,
+                subtitle: AppStrings.newFollowersDesc,
                 value: followersNotifications,
                 onChanged: (value) {
                   setState(() => followersNotifications = value);
                 },
               ),
               _buildSwitchItem(
-                title: "Mentions",
-                subtitle: "When someone mentions you",
+                icon: Icons.alternate_email,
+                title: AppStrings.mentions,
+                subtitle: AppStrings.mentionsDesc,
                 value: mentionsNotifications,
                 onChanged: (value) {
                   setState(() => mentionsNotifications = value);
                 },
               ),
               _buildSwitchItem(
-                title: "Direct Messages",
-                subtitle: "When you receive a direct message",
+                icon: Icons.message,
+                title: AppStrings.directMessages,
+                subtitle: AppStrings.directMessagesDesc,
                 value: directMessages,
                 onChanged: (value) {
                   setState(() => directMessages = value);
                 },
               ),
             ]),
-
-            SizedBox(height: 50),
           ],
         ),
       ),
@@ -141,6 +147,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Widget _buildSwitchItem({
+    required IconData icon,
     required String title,
     required String subtitle,
     required bool value,
@@ -150,6 +157,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
+          Icon(icon, color: Colors.blue, size: 24),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

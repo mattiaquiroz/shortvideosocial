@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/services/api_service.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:math';
-import 'constants/strings.dart';
+import 'package:shortvideoapp/constants/strings.dart';
 
 class Home extends StatelessWidget {
   const Home({super.key});
@@ -25,22 +26,32 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ApiService _apiService = ApiService();
   int selectedTab = 1;
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
   String _errorMessage = '';
+  Map<String, bool> isVideoLiked = {};
 
-  // All available videos
-  final List<String> allVideos = [
-    'assets/videos/Video_YTShorts_3.mp4',
-    'assets/videos/Video_YTShorts_4.mp4',
-    'assets/videos/Video_YTShorts_5.mp4',
-  ];
+  List<Map<String, String>> videosData = [];
 
   // Current video for each tab
-  late String currentFollowingVideo;
-  late String currentForYouVideo;
+  late Map<String, String> currentFollowingVideo;
+  late Map<String, String> currentForYouVideo;
+
+  // Temporary empty video data for initialization
+  final Map<String, String> _emptyVideoData = {
+    'title': '',
+    'description': '',
+    'videoUrl': '',
+    'likesCount': '0',
+    'commentsCount': '0',
+    'sharesCount': '0',
+    'viewsCount': '0',
+    'createdAt': '',
+    'userId': '',
+  };
 
   // Random number generator
   final Random _random = Random();
@@ -48,37 +59,32 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize with random videos
-    currentFollowingVideo = _getRandomVideo();
-    currentForYouVideo = _getRandomVideo();
-
-    _initializeVideo();
+    currentFollowingVideo = _emptyVideoData;
+    currentForYouVideo = _emptyVideoData;
+    _loadVideosAndInitialize();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
-  String _getRandomVideo() {
-    return allVideos[_random.nextInt(allVideos.length)];
-  }
-
-  String _getRandomVideoExcluding(String excludeVideo) {
-    final availableVideos = allVideos
+  Map<String, String> _getRandomVideoExcluding(
+    Map<String, String> excludeVideo,
+  ) {
+    final availableVideos = videosData
         .where((video) => video != excludeVideo)
         .toList();
-    if (availableVideos.isEmpty) return allVideos[0];
+    if (availableVideos.isEmpty) return videosData[0];
     return availableVideos[_random.nextInt(availableVideos.length)];
   }
 
   void _loadNewRandomVideo() {
-    String currentVideo = selectedTab == 0
+    Map<String, String> currentVideo = selectedTab == 0
         ? currentFollowingVideo
         : currentForYouVideo;
-    String newVideo = _getRandomVideoExcluding(currentVideo);
+    Map<String, String> newVideo = _getRandomVideoExcluding(currentVideo);
 
     if (selectedTab == 0) {
       currentFollowingVideo = newVideo;
@@ -86,63 +92,40 @@ class _HomePageState extends State<HomePage> {
       currentForYouVideo = newVideo;
     }
 
-    _controller.dispose();
+    _controller?.dispose();
+    _controller = null;
     _initializeVideo();
-  }
-
-  void _initializeVideo() {
-    setState(() {
-      _isInitialized = false;
-      _hasError = false;
-      _errorMessage = '';
-    });
-
-    String videoToPlay = selectedTab == 0
-        ? currentFollowingVideo
-        : currentForYouVideo;
-
-    _controller = VideoPlayerController.asset(videoToPlay);
-
-    _controller
-        .initialize()
-        .then((_) {
-          setState(() {
-            _isInitialized = true;
-            _hasError = false;
-          });
-          _controller.play();
-          _controller.setLooping(true);
-        })
-        .catchError((error) {
-          // Handle video initialization error
-          setState(() {
-            _isInitialized = false;
-            _hasError = true;
-            _errorMessage = AppStrings.videoFailedToLoad;
-          });
-        });
   }
 
   void _retryVideo() {
-    _controller.dispose();
-    _initializeVideo();
+    _controller?.dispose();
+    _controller = null;
+    _loadVideosAndInitialize();
   }
 
   void _switchTab(int index) {
     setState(() {
       selectedTab = index;
     });
-    _controller.dispose();
+    _controller?.dispose();
+    _controller = null;
     _initializeVideo();
   }
 
-  String _getCurrentVideoName() {
-    String currentVideo = selectedTab == 0
+  String _getCurrentVideoDescription() {
+    Map<String, String> currentVideo = selectedTab == 0
         ? currentFollowingVideo
         : currentForYouVideo;
-    // Extract filename from path and remove extension
-    String fileName = currentVideo.split('/').last;
-    return fileName.replaceAll('.mp4', '').replaceAll('_', ' ');
+
+    return currentVideo['description']!;
+  }
+
+  String _getCurrentVideoUser() {
+    Map<String, String> currentVideo = selectedTab == 0
+        ? currentFollowingVideo
+        : currentForYouVideo;
+
+    return currentVideo['userUsername']!;
   }
 
   @override
@@ -212,35 +195,34 @@ class _HomePageState extends State<HomePage> {
   Widget _buildContent() {
     return GestureDetector(
       onTap: () {
-        if (_isInitialized && !_hasError) {
+        if (_isInitialized && !_hasError && _controller != null) {
           setState(() {
-            _controller.value.isPlaying
-                ? _controller.pause()
-                : _controller.play();
+            if (_controller!.value.isPlaying) {
+              _controller!.pause();
+            } else {
+              _controller!.play();
+            }
           });
         }
       },
       onVerticalDragEnd: (DragEndDetails details) {
-        // Check if swipe was upward (next video) - reduced sensitivity for easier triggering
-        print('Swipe detected: ${details.primaryVelocity}');
         if (details.primaryVelocity! < -200) {
-          print('Loading new video!');
           _loadNewRandomVideo();
         }
       },
-      child: Container(
+      child: SizedBox(
         height: MediaQuery.of(context).size.height,
         child: Stack(
           children: [
             // Video Player
-            _isInitialized
+            _isInitialized && _controller != null
                 ? SizedBox.expand(
                     child: FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
-                        width: _controller.value.size.width,
-                        height: _controller.value.size.height,
-                        child: VideoPlayer(_controller),
+                        width: _controller!.value.size.width,
+                        height: _controller!.value.size.height,
+                        child: VideoPlayer(_controller!),
                       ),
                     ),
                   )
@@ -252,9 +234,9 @@ class _HomePageState extends State<HomePage> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.purple.withValues(alpha: 0.3),
+                          Colors.purple.withOpacity(0.3),
                           Colors.black,
-                          Colors.blue.withValues(alpha: 0.3),
+                          Colors.blue.withOpacity(0.3),
                         ],
                       ),
                     ),
@@ -305,8 +287,8 @@ class _HomePageState extends State<HomePage> {
                   ),
 
             Center(
-              child: _isInitialized
-                  ? _controller.value.isPlaying
+              child: _isInitialized && _controller != null
+                  ? _controller!.value.isPlaying
                         ? null
                         : Icon(
                             Icons.play_arrow,
@@ -322,11 +304,39 @@ class _HomePageState extends State<HomePage> {
               right: 20,
               child: Column(
                 children: [
-                  _buildActionButton(Icons.favorite, AppStrings.likes),
+                  _buildActionButton(
+                    isVideoLiked[selectedTab == 0
+                                ? (currentFollowingVideo['id'] ?? '')
+                                : (currentForYouVideo['id'] ?? '')] ==
+                            true
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    selectedTab == 0
+                        ? currentFollowingVideo['likesCount']!
+                        : currentForYouVideo['likesCount']!,
+                    onTap: () {
+                      final videoId = selectedTab == 0
+                          ? currentFollowingVideo['id']
+                          : currentForYouVideo['id'];
+                      if (videoId != null && videoId.isNotEmpty) {
+                        _likeVideo(videoId);
+                      }
+                    },
+                  ),
                   SizedBox(height: 24),
-                  _buildActionButton(Icons.comment, AppStrings.comments),
+                  _buildActionButton(
+                    Icons.comment,
+                    selectedTab == 0
+                        ? currentFollowingVideo['commentsCount']!
+                        : currentForYouVideo['commentsCount']!,
+                  ),
                   SizedBox(height: 24),
-                  _buildActionButton(Icons.share, AppStrings.share),
+                  _buildActionButton(
+                    Icons.share,
+                    selectedTab == 0
+                        ? currentFollowingVideo['sharesCount']!
+                        : currentForYouVideo['sharesCount']!,
+                  ),
                   SizedBox(height: 24),
                   _buildProfileButton(),
                 ],
@@ -341,9 +351,11 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    selectedTab == 0
-                        ? AppStrings.followingFeed
-                        : AppStrings.forYouFeed,
+                    _hasError
+                        ? AppStrings.videoFailedToLoad
+                        : _isInitialized
+                        ? _getCurrentVideoUser()
+                        : AppStrings.loadingVideo,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -355,7 +367,7 @@ class _HomePageState extends State<HomePage> {
                     _hasError
                         ? AppStrings.videoFailedToLoad
                         : _isInitialized
-                        ? _getCurrentVideoName()
+                        ? _getCurrentVideoDescription()
                         : AppStrings.loadingVideo,
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
@@ -420,5 +432,188 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _loadVideosAndInitialize() async {
+    try {
+      await _getVideos();
+
+      if (!mounted) return;
+
+      if (videosData.isEmpty) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = AppStrings.noVideosAvailable;
+        });
+        return;
+      }
+
+      setState(() {
+        currentFollowingVideo = videosData[0];
+        currentForYouVideo = videosData[0];
+        _hasError = false;
+        _errorMessage = '';
+      });
+
+      await _loadLikeStatusForVideos();
+
+      _initializeVideo();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _hasError = true;
+        _errorMessage = '${AppStrings.failedToLoadVideos}: ${e.toString()}';
+      });
+    }
+  }
+
+  Future<void> _loadLikeStatusForVideos() async {
+    for (var video in videosData) {
+      final videoId = video['id'];
+      if (videoId != null && videoId.isNotEmpty) {
+        try {
+          final response = await _apiService.isVideoLiked(videoId);
+          if (response['success'] == true) {
+            setState(() {
+              isVideoLiked[videoId] = response['isLiked'] ?? false;
+            });
+          }
+        } catch (e) {
+          print('Error loading like status for video $videoId: $e');
+        }
+      }
+    }
+  }
+
+  void _initializeVideo() {
+    _controller?.dispose();
+    _controller = null;
+
+    setState(() {
+      _isInitialized = false;
+      _hasError = false;
+      _errorMessage = '';
+    });
+
+    Map<String, String> videoToPlay = selectedTab == 0
+        ? currentFollowingVideo
+        : currentForYouVideo;
+
+    try {
+      _controller = VideoPlayerController.asset(videoToPlay['videoUrl']!);
+
+      _controller
+          ?.initialize()
+          .then((_) {
+            if (!mounted) return;
+            setState(() {
+              _isInitialized = true;
+              _hasError = false;
+            });
+            _controller?.play();
+            _controller?.setLooping(true);
+          })
+          .catchError((error) {
+            if (!mounted) return;
+            setState(() {
+              _isInitialized = false;
+              _hasError = true;
+              _errorMessage = AppStrings.videoFailedToLoad;
+            });
+          });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isInitialized = false;
+        _hasError = true;
+        _errorMessage = '${AppStrings.videoFailedToLoad}: ${e.toString()}';
+      });
+    }
+  }
+
+  Future<void> _getVideos() async {
+    try {
+      final response = await _apiService.getVideos(
+        page: 0,
+        size: 10,
+        sortBy: 'popular',
+      );
+
+      if (response['content'] != null) {
+        setState(() {
+          videosData.clear();
+          isVideoLiked.clear();
+          for (var video in response['content']) {
+            final videoId = (video['id'] ?? '').toString();
+            if (videoId.isNotEmpty) {
+              videosData.add({
+                'id': videoId,
+                'userUsername': video['user']?['username'] ?? '',
+                'description': video['description'] ?? '',
+                'videoUrl': video['videoUrl'] ?? '',
+                'likesCount': (video['likesCount'] ?? 0).toString(),
+                'commentsCount': (video['commentsCount'] ?? 0).toString(),
+                'sharesCount': (video['sharesCount'] ?? 0).toString(),
+                'viewsCount': (video['viewsCount'] ?? 0).toString(),
+                'createdAt': video['createdAt'] ?? '',
+                'userId': (video['user']?['id'] ?? '').toString(),
+              });
+              isVideoLiked[videoId] = false;
+            }
+          }
+        });
+      } else {
+        throw Exception(response['message'] ?? 'Failed to fetch videos');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Couldn't fetch videos: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _likeVideo(String videoId) async {
+    try {
+      await _apiService.likeVideo(videoId);
+
+      setState(() {
+        final bool currentLikeState = isVideoLiked[videoId] ?? false;
+        if (!currentLikeState) {
+          selectedTab == 0
+              ? currentFollowingVideo['likesCount'] =
+                    (int.parse(currentFollowingVideo['likesCount']!) + 1)
+                        .toString()
+              : currentForYouVideo['likesCount'] =
+                    (int.parse(currentForYouVideo['likesCount']!) + 1)
+                        .toString();
+        } else {
+          selectedTab == 0
+              ? currentFollowingVideo['likesCount'] =
+                    (int.parse(currentFollowingVideo['likesCount']!) - 1)
+                        .toString()
+              : currentForYouVideo['likesCount'] =
+                    (int.parse(currentForYouVideo['likesCount']!) - 1)
+                        .toString();
+        }
+        isVideoLiked[videoId] = !currentLikeState;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Couldn't like video: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
+    }
   }
 }
