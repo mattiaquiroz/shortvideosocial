@@ -40,7 +40,7 @@ It is primarily for learning and testing purposes.
 - Flutter for cross-platform development
 - HTTP communication using the `http` package
 - File picker integration for video upload
-- Basic UI for testing core features
+- Complete Modern UI
 
 ---
 
