@@ -15,14 +15,14 @@ It is primarily for learning and testing purposes.
 
 ## Features (Planned / In Progress)
 
-- [ ] User registration and login
+- [X] User registration and login
 - [ ] Upload short videos
-- [ ] Store video metadata in the database
-- [ ] Stream uploaded videos via backend
+- [X] Store video metadata in the database
+- [X] Stream uploaded videos via backend
 - [ ] User profiles
 - [ ] Likes and comments
-- [ ] Basic video feed
-- [ ] Video playback with controls
+- [X] Basic video feed
+- [X] Video playback with controls
 - [ ] Mobile UI using Flutter
 
 ---
