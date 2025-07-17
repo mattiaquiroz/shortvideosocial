@@ -48,4 +48,28 @@ class User {
       'createdAt': createdAt.toIso8601String(),
     };
   }
+
+  User copyWith({
+    int? id,
+    String? username,
+    String? email,
+    String? fullName,
+    String? profilePictureUrl,
+    String? bio,
+    int? followersCount,
+    int? followingCount,
+    DateTime? createdAt,
+  }) {
+    return User(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
+      bio: bio ?? this.bio,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

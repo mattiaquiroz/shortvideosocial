@@ -3,7 +3,6 @@ import 'package:shortvideoapp/screens/main/home.dart';
 import 'services/localization_service.dart';
 import 'services/storage_service.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/main/home.dart';
 import 'screens/main/create.dart';
 import 'screens/main/profile.dart';
 
@@ -86,11 +85,11 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
 
-  final List<Widget> _screens = [
-    const HomePage(),
-    const CreatePage(),
-    const ProfilePage()
-  ];
+  // GlobalKey to access HomePageState
+  final GlobalKey<HomePageState> _homePageKey = GlobalKey<HomePageState>();
+
+  // Declare screens list but initialize in initState
+  late List<Widget> _screens;
 
   @override
   void initState() {
@@ -104,6 +103,13 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+
+    // Initialize screens list here where _homePageKey is available
+    _screens = [
+      HomePage(key: _homePageKey),
+      const CreatePage(),
+      const ProfilePage(userId: -1, username: '', isPublicUser: false)
+    ];
   }
 
   @override
@@ -118,7 +124,16 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
       return; // Don't do anything if already on that page
     }
 
-    // Jump directly to the page without animation to avoid intermediate pages
+    // If switching away from home tab (index 0), pause the video
+    if (_currentIndex == 0 && index != 0) {
+      _homePageKey.currentState?.pauseCurrentVideo();
+    }
+
+    // If switching to home tab (index 0), resume the video
+    if (index == 0 && _currentIndex != 0) {
+      _homePageKey.currentState?.resumeCurrentVideo();
+    }
+
     _pageController.jumpToPage(index);
   }
 

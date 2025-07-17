@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/models/public_user_model.dart';
 import 'package:shortvideoapp/screens/settings/settings.dart';
 import 'package:shortvideoapp/screens/main/single_video_player.dart';
 import 'package:shortvideoapp/constants/strings.dart';
@@ -6,21 +7,36 @@ import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
 
 class Profile extends StatelessWidget {
-  const Profile({super.key});
+  final int userId;
+  final String username;
+  final bool isPublicUser;
+  const Profile(
+      {super.key,
+      required this.userId,
+      required this.username,
+      required this.isPublicUser});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: AppStrings.profile,
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const ProfilePage(),
+      home: ProfilePage(
+          userId: userId, username: username, isPublicUser: isPublicUser),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final int userId;
+  final String username;
+  final bool isPublicUser;
+  const ProfilePage(
+      {super.key,
+      required this.userId,
+      required this.username,
+      required this.isPublicUser});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -33,8 +49,9 @@ class _ProfilePageState extends State<ProfilePage> {
   final GlobalKey _nameKey = GlobalKey();
   final ApiService _apiService = ApiService();
 
-  User? currentUser;
+  dynamic currentUser;
   bool isLoading = true;
+  bool isOwnProfile = false;
   String? errorMessage;
 
   @override
@@ -58,25 +75,38 @@ class _ProfilePageState extends State<ProfilePage> {
         errorMessage = null;
       });
 
-      // First try to get user from local storage for immediate display
-      final localUser = await _apiService.getCurrentUser();
-      if (localUser != null) {
-        setState(() {
-          currentUser = localUser;
-          isLoading = false;
-        });
-      }
-
       // Then refresh from API to get latest data
-      final result = await _apiService.refreshCurrentUser();
-      if (result['success']) {
-        setState(() {
-          currentUser = result['user'];
-          isLoading = false;
-        });
+      if (widget.userId != -1) {
+        final result = await _apiService.getUserById(widget.userId);
+        final localUser = await _apiService.getCurrentUser();
+        if (result['success']) {
+          setState(() {
+            currentUser = result['user'];
+            if (localUser != null) {
+              if (localUser.id == widget.userId) {
+                isOwnProfile = true;
+              }
+            }
+            isLoading = false;
+          });
+        } else {
+          // If refresh fails but we have local data, just use that
+          if (currentUser == null) {
+            setState(() {
+              errorMessage = result['message'] ?? 'Failed to load user profile';
+              isLoading = false;
+            });
+          }
+        }
       } else {
-        // If refresh fails but we have local data, just use that
-        if (localUser == null) {
+        final result = await _apiService.refreshCurrentUser();
+        if (result['success']) {
+          setState(() {
+            currentUser = result['user'];
+            isOwnProfile = true;
+            isLoading = false;
+          });
+        } else {
           setState(() {
             errorMessage = result['message'] ?? 'Failed to load user profile';
             isLoading = false;
@@ -330,8 +360,16 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: !widget.isPublicUser
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.keyboard_arrow_left, size: 30),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
         title: Text(
-          AppStrings.profile,
+          widget.isPublicUser ? "" : AppStrings.profile,
           style:
               const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
@@ -356,41 +394,43 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.black),
-            onPressed: () {
-              // Notifications functionality
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      const SettingsPage(),
-                  transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(1.0, 0.0);
-                    const end = Offset.zero;
-                    const curve = Curves.ease;
+          if (!widget.isPublicUser)
+            IconButton(
+              icon: const Icon(Icons.notifications, color: Colors.black),
+              onPressed: () {
+                // Notifications functionality
+              },
+            ),
+          if (!widget.isPublicUser)
+            IconButton(
+              icon: const Icon(Icons.settings, color: Colors.black),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        const SettingsPage(),
+                    transitionDuration: const Duration(milliseconds: 300),
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.ease;
 
-                    var tween = Tween(
-                      begin: begin,
-                      end: end,
-                    ).chain(CurveTween(curve: curve));
+                      var tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
 
-                    return SlideTransition(
-                      position: animation.drive(tween),
-                      child: child,
-                    );
-                  },
-                ),
-              );
-            },
-          ),
+                      return SlideTransition(
+                        position: animation.drive(tween),
+                        child: child,
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
         ],
       ),
       body: isLoading
@@ -517,21 +557,22 @@ class _ProfilePageState extends State<ProfilePage> {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    IconButton(
-                                      onPressed: () {},
-                                      icon: const Icon(Icons.edit,
-                                          color: Colors.white),
-                                      style: ButtonStyle(
-                                        backgroundColor:
-                                            WidgetStateProperty.all<Color>(
-                                          Colors.black,
-                                        ),
-                                        padding:
-                                            WidgetStateProperty.all<EdgeInsets>(
-                                          const EdgeInsets.all(8),
+                                    if (isOwnProfile)
+                                      IconButton(
+                                        onPressed: () {},
+                                        icon: const Icon(Icons.edit,
+                                            color: Colors.white),
+                                        style: ButtonStyle(
+                                          backgroundColor:
+                                              WidgetStateProperty.all<Color>(
+                                            Colors.black,
+                                          ),
+                                          padding: WidgetStateProperty.all<
+                                              EdgeInsets>(
+                                            const EdgeInsets.all(8),
+                                          ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),

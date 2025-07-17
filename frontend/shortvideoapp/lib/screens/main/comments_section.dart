@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:shortvideoapp/models/user_model.dart';
+import 'package:shortvideoapp/screens/main/profile.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:shortvideoapp/services/video_player_service.dart';
 
 class CommentsSection extends StatefulWidget {
   final String videoId;
+  final String? playerContextId; // new
   final ApiService apiService;
   final Function(int)? onCommentCountChanged;
   final bool isBottomSheet;
@@ -14,6 +17,7 @@ class CommentsSection extends StatefulWidget {
   const CommentsSection({
     Key? key,
     required this.videoId,
+    this.playerContextId,
     required this.apiService,
     this.onCommentCountChanged,
     this.isBottomSheet = false,
@@ -486,36 +490,54 @@ class _CommentsSectionState extends State<CommentsSection> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile picture
-            FutureBuilder<String>(
-              future:
-                  ApiService().getProfileImageUrl(profileUrl, userId: userId),
-              builder: (context, snapshot) {
-                final imageUrl = snapshot.data ?? "null";
-                return FutureBuilder<Map<String, String>>(
-                  future: ApiService().getImageHeaders(),
-                  builder: (context, headerSnap) {
-                    final headers = headerSnap.data ?? {};
-                    return CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.grey[300],
-                      child: ClipOval(
-                        child: Image.network(
-                          imageUrl,
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                          headers: headers,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(Icons.person,
-                                size: 18, color: Colors.grey[600]);
-                          },
+            // Profile picture with navigation
+            GestureDetector(
+              onTap: userId != null && user?['username'] != null
+                  ? () async {
+                      await EnhancedVideoService()
+                          .pauseVideo(widget.playerContextId ?? widget.videoId);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfilePage(
+                            userId: int.tryParse(userId) ?? 0,
+                            username: user['username'],
+                            isPublicUser: true,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    }
+                  : null,
+              child: FutureBuilder<String>(
+                future:
+                    ApiService().getProfileImageUrl(profileUrl, userId: userId),
+                builder: (context, snapshot) {
+                  final imageUrl = snapshot.data ?? "null";
+                  return FutureBuilder<Map<String, String>>(
+                    future: ApiService().getImageHeaders(),
+                    builder: (context, headerSnap) {
+                      final headers = headerSnap.data ?? {};
+                      return CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.grey[300],
+                        child: ClipOval(
+                          child: Image.network(
+                            imageUrl,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                            headers: headers,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(Icons.person,
+                                  size: 18, color: Colors.grey[600]);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
             const SizedBox(width: 12),
             // Comment content
@@ -526,10 +548,28 @@ class _CommentsSectionState extends State<CommentsSection> {
                   // Username and time
                   Row(
                     children: [
-                      Text(
-                        user?['username'] ?? 'Anonymous',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13),
+                      GestureDetector(
+                        onTap: userId != null && user?['username'] != null
+                            ? () async {
+                                await EnhancedVideoService().pauseVideo(
+                                    widget.playerContextId ?? widget.videoId);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProfilePage(
+                                      userId: int.tryParse(userId) ?? 0,
+                                      username: user['username'],
+                                      isPublicUser: true,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        child: Text(
+                          user?['username'] ?? 'Anonymous',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(

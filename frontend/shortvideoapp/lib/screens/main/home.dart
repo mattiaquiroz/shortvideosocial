@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/screens/main/profile.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/services/video_player_service.dart';
 import 'package:shortvideoapp/screens/main/comments_section.dart';
@@ -9,10 +10,10 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
   final ApiService _apiService = ApiService();
   final EnhancedVideoService _videoService = EnhancedVideoService();
   final PageController _pageController = PageController();
@@ -33,6 +34,25 @@ class _HomePageState extends State<HomePage> {
     _pageController.dispose();
     _videoService.dispose();
     super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+
+  // Method to pause current video when switching tabs
+  void pauseCurrentVideo() {
+    if (videosData.isNotEmpty && currentVideoIndex < videosData.length) {
+      final videoId = videosData[currentVideoIndex]['id'];
+      _videoService.pauseVideo(videoId!);
+    }
+  }
+
+  // Method to resume current video when returning to home tab
+  void resumeCurrentVideo() {
+    if (videosData.isNotEmpty && currentVideoIndex < videosData.length) {
+      final videoId = videosData[currentVideoIndex]['id'];
+      _videoService.playVideo(videoId!);
+    }
   }
 
   Future<void> _loadVideos() async {
@@ -122,6 +142,7 @@ class _HomePageState extends State<HomePage> {
         previousVideoId,
         previousVideoUrl,
         authToken: authToken,
+        context: 'home',
       );
 
       // Auto-play current video after a short delay
@@ -135,6 +156,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -386,6 +408,9 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
           _isDoubleSpeed = true;
           _playbackSpeed = 2.0;
         });
+        if (!controller.value.isPlaying) {
+          controller.play();
+        }
         controller.setPlaybackSpeed(_playbackSpeed);
       }
     }
@@ -484,26 +509,31 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
 
             // 2x Speed indicator
             if (_isDoubleSpeed)
-              Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Text(
-                    '2x',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.15,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      '2x',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
 
-            // Progress Bar (TikTok-style)
+            // Progress Bar
             if (controller != null && controller.value.isInitialized)
               Positioned(
                 bottom: 0,
@@ -522,12 +552,16 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                     isVideoLiked[widget.videoId] == true
                         ? Icons.favorite
                         : Icons.favorite_border,
+                    isVideoLiked[widget.videoId] == true
+                        ? Colors.red
+                        : Colors.white,
                     widget.videoData['likesCount']!,
                     onTap: _likeVideo,
                   ),
                   const SizedBox(height: 24),
                   _buildActionButton(
                     Icons.comment,
+                    Colors.white,
                     widget.videoData['commentsCount']!,
                     onTap: () {
                       showModalBottomSheet(
@@ -551,6 +585,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                   const SizedBox(height: 24),
                   _buildActionButton(
                     Icons.share,
+                    Colors.white,
                     widget.videoData['sharesCount']!,
                   ),
                   const SizedBox(height: 24),
@@ -590,6 +625,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
 
   Widget _buildActionButton(
     IconData icon,
+    Color color,
     String label, {
     VoidCallback? onTap,
   }) {
@@ -603,7 +639,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
               color: Colors.black.withOpacity(0.3),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: color, size: 24),
           ),
           if (label.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -623,9 +659,29 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
 
   Widget _buildProfileButton() {
     return GestureDetector(
-      onTap: () {
-        // TODO: Implement profile navigation
-        print("Profile button pressed");
+      onTap: () async {
+        await _videoService
+            .pauseVideo(widget.videoId); // Pause the current video
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(
+              userId: int.tryParse(widget.videoData['userId'] ?? '0') ?? 0,
+              username: widget.videoData['userUsername'] ?? '',
+              isPublicUser: true,
+            ),
+          ),
+        ).then((_) {
+          // Check if the video controller still exists and resume it
+          final controller = _videoService.getControllerSync(widget.videoId);
+          if (controller != null && controller.value.isInitialized) {
+            // Video controller exists, just resume it
+            _videoService.playVideo(widget.videoId);
+          } else {
+            // Video controller was disposed, re-initialize
+            _initializePlayer();
+          }
+        });
       },
       child: Container(
         width: 48,
@@ -694,7 +750,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
 
   Widget _buildProgressBar(VideoPlayerController controller) {
     return SizedBox(
-      height: 4,
+      height: 5,
       child: StreamBuilder<Duration>(
         stream: _getPositionStream(controller),
         builder: (context, snapshot) {
@@ -729,7 +785,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                 // Background line
                 Container(
                   width: double.infinity,
-                  height: 2,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(1),
@@ -739,7 +795,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                 FractionallySizedBox(
                   widthFactor: progress,
                   child: Container(
-                    height: 2,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(1),
@@ -750,7 +806,7 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                 if (_isDragging)
                   Positioned(
                     left: (MediaQuery.of(context).size.width * progress) - 6,
-                    top: -4,
+                    top: -6,
                     child: Container(
                       width: 12,
                       height: 12,

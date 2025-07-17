@@ -276,7 +276,10 @@ class ApiService {
         );
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
+          // Decode response body as UTF-8 to make accents work
+          final String utf8Body = utf8.decode(response.bodyBytes);
+
+          final data = jsonDecode(utf8Body);
           return {'success': true, 'data': data};
         } else {
           return {'success': false, 'message': 'Failed to load videos'};

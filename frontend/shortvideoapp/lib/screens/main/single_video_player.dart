@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shortvideoapp/screens/main/profile.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/services/video_player_service.dart';
 import 'package:shortvideoapp/constants/strings.dart';
@@ -22,9 +23,19 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
   final ApiService _apiService = ApiService();
   final EnhancedVideoService _videoService = EnhancedVideoService();
 
+  // Generate a unique context ID for this instance
+  late final String _uniqueContextId;
+
+  @override
+  void initState() {
+    super.initState();
+    _uniqueContextId =
+        'single_ 2${DateTime.now().millisecondsSinceEpoch}_${widget.videoData['id'] ?? ''}';
+  }
+
   @override
   void dispose() {
-    _videoService.dispose();
+    _videoService.disposeContext(_uniqueContextId);
     super.dispose();
   }
 
@@ -36,7 +47,8 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.keyboard_arrow_left,
+              color: Colors.white, size: 30),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -47,6 +59,7 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
           videoData: _convertVideoData(widget.videoData),
           apiService: _apiService,
           autoPlay: true,
+          contextId: _uniqueContextId, // pass the unique context ID
         ),
       ),
     );
@@ -74,6 +87,7 @@ class SingleEnhancedVideoPlayer extends StatefulWidget {
   final Map<String, String> videoData;
   final ApiService apiService;
   final bool autoPlay;
+  final String contextId; // new
 
   const SingleEnhancedVideoPlayer({
     Key? key,
@@ -81,6 +95,7 @@ class SingleEnhancedVideoPlayer extends StatefulWidget {
     required this.videoData,
     required this.apiService,
     required this.autoPlay,
+    required this.contextId,
   }) : super(key: key);
 
   @override
@@ -162,12 +177,14 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   @override
   void dispose() {
-    final controller = _videoService.getControllerSync(widget.videoId);
+    final controller = _videoService.getControllerSync(widget.contextId);
     if (controller != null) {
       controller.removeListener(() {});
     }
     _commentController.dispose();
     _commentFocusNode.dispose();
+    // Only dispose the unique context
+    _videoService.disposeContext(widget.contextId);
     super.dispose();
   }
 
@@ -176,9 +193,10 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       _videoUrl = await widget.apiService.getVideoStreamingUrl(widget.videoId);
       final authToken = await widget.apiService.getAuthToken();
       final controller = await _videoService.getController(
-        widget.videoId,
+        widget.contextId,
         _videoUrl!,
         authToken: authToken,
+        context: widget.contextId,
       );
 
       if (controller != null && mounted) {
@@ -195,7 +213,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
         });
 
         if (widget.autoPlay) {
-          _videoService.playVideo(widget.videoId);
+          _videoService.playVideo(widget.contextId);
         }
       }
     } catch (e) {
@@ -255,12 +273,12 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   void _togglePlayPause() {
     if (_isInitialized) {
-      final controller = _videoService.getControllerSync(widget.videoId);
+      final controller = _videoService.getControllerSync(widget.contextId);
       if (controller != null) {
         if (controller.value.isPlaying) {
-          _videoService.pauseVideo(widget.videoId);
+          _videoService.pauseVideo(widget.contextId);
         } else {
-          _videoService.playVideo(widget.videoId);
+          _videoService.playVideo(widget.contextId);
         }
       }
     }
@@ -268,12 +286,15 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   void _onLongPressStart() {
     if (_isInitialized) {
-      final controller = _videoService.getControllerSync(widget.videoId);
+      final controller = _videoService.getControllerSync(widget.contextId);
       if (controller != null) {
         setState(() {
           _isDoubleSpeed = true;
           _playbackSpeed = 2.0;
         });
+        if (!controller.value.isPlaying) {
+          controller.play();
+        }
         controller.setPlaybackSpeed(_playbackSpeed);
       }
     }
@@ -281,7 +302,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   void _onLongPressEnd() {
     if (_isInitialized) {
-      final controller = _videoService.getControllerSync(widget.videoId);
+      final controller = _videoService.getControllerSync(widget.contextId);
       if (controller != null) {
         setState(() {
           _isDoubleSpeed = false;
@@ -294,7 +315,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   void _onProgressBarDrag(double value) {
     if (_isInitialized) {
-      final controller = _videoService.getControllerSync(widget.videoId);
+      final controller = _videoService.getControllerSync(widget.contextId);
       if (controller != null) {
         final duration = controller.value.duration;
         final newPosition = duration * value;
@@ -335,7 +356,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       );
     }
 
-    final controller = _videoService.getControllerSync(widget.videoId);
+    final controller = _videoService.getControllerSync(widget.contextId);
     return Column(
       children: [
         // Video Area
@@ -376,26 +397,31 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
                   // 2x Speed indicator
                   if (_isDoubleSpeed)
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Text(
-                          '2x',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    Positioned(
+                      top: MediaQuery.of(context).size.height * 0.15,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            '2x',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
 
-                  // Progress Bar (TikTok-style)
+                  // Progress Bar
                   if (controller != null && controller.value.isInitialized)
                     Positioned(
                       bottom: 0,
@@ -414,12 +440,16 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                           isVideoLiked[widget.videoId] == true
                               ? Icons.favorite
                               : Icons.favorite_border,
+                          isVideoLiked[widget.videoId] == true
+                              ? Colors.red
+                              : Colors.white,
                           widget.videoData['likesCount']!,
                           onTap: _likeVideo,
                         ),
                         const SizedBox(height: 24),
                         _buildActionButton(
                           Icons.comment,
+                          Colors.white,
                           widget.videoData['commentsCount']!,
                           onTap: () {
                             showModalBottomSheet(
@@ -427,7 +457,10 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
                               builder: (context) => CommentsSection(
-                                videoId: widget.videoId,
+                                videoId:
+                                    widget.videoId, // real video ID for API
+                                playerContextId:
+                                    widget.contextId, // for pausing
                                 apiService: widget.apiService,
                                 isBottomSheet: true,
                                 onCommentCountChanged: (count) {
@@ -443,6 +476,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                         const SizedBox(height: 24),
                         _buildActionButton(
                           Icons.share,
+                          Colors.white,
                           widget.videoData['sharesCount']!,
                         ),
                         const SizedBox(height: 24),
@@ -499,6 +533,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   Widget _buildActionButton(
     IconData icon,
+    Color color,
     String label, {
     VoidCallback? onTap,
   }) {
@@ -512,7 +547,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
               color: Colors.black.withOpacity(0.3),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(icon, color: color, size: 24),
           ),
           if (label.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -532,9 +567,21 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   Widget _buildProfileButton() {
     return GestureDetector(
-      onTap: () {
-        // TODO: Implement profile navigation
-        print("Profile button pressed");
+      onTap: () async {
+        // Pause the current video before navigating
+        await _videoService.pauseVideo(widget.contextId);
+
+        // Navigate to other users profile
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(
+              userId: int.tryParse(widget.videoData['userId'] ?? '') ?? 0,
+              username: widget.videoData['userUsername'] ?? '',
+              isPublicUser: true,
+            ),
+          ),
+        );
       },
       child: Container(
         width: 48,
@@ -603,7 +650,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
 
   Widget _buildProgressBar(VideoPlayerController controller) {
     return SizedBox(
-      height: 4,
+      height: 5,
       child: StreamBuilder<Duration>(
         stream: _getPositionStream(controller),
         builder: (context, snapshot) {
@@ -638,7 +685,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                 // Background line
                 Container(
                   width: double.infinity,
-                  height: 2,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(1),
@@ -648,7 +695,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                 FractionallySizedBox(
                   widthFactor: progress,
                   child: Container(
-                    height: 2,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(1),
@@ -659,7 +706,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                 if (_isDragging)
                   Positioned(
                     left: (MediaQuery.of(context).size.width * progress) - 6,
-                    top: -4,
+                    top: -6,
                     child: Container(
                       width: 12,
                       height: 12,

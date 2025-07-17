@@ -7,54 +7,78 @@ class EnhancedVideoService {
   factory EnhancedVideoService() => _instance;
   EnhancedVideoService._internal();
 
-  // Optimized cache for video streaming
+  // Optimized cache for video streaming with context support
   final Map<String, VideoPlayerController> _controllers = {};
   final Map<String, bool> _isInitialized = {};
-  final int _maxCacheSize = 3; // Optimized for mobile memory
+  final Map<String, String> _controllerContexts = {};
+  final int _maxCacheSize = 5; // Increased for better caching
+
+  // Mutex for preventing concurrent modifications
+  bool _isModifying = false;
 
   // Current and next video management
   String? _currentVideoId;
   String? _nextVideoId;
   String? _previousVideoId;
 
+  // Helper method to safely modify the controllers map
+  Future<T> _safeModify<T>(Future<T> Function() operation) async {
+    while (_isModifying) {
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+    _isModifying = true;
+    try {
+      return await operation();
+    } finally {
+      _isModifying = false;
+    }
+  }
+
   // Get or create video controller
   Future<VideoPlayerController?> getController(String videoId, String videoUrl,
-      {String? authToken}) async {
-    // If controller already exists and is initialized, return it
-    if (_controllers.containsKey(videoId) && _isInitialized[videoId] == true) {
-      return _controllers[videoId];
-    }
+      {String? authToken, String context = 'default'}) async {
+    return await _safeModify(() async {
+      // If controller already exists and is initialized, return it
+      if (_controllers.containsKey(videoId) &&
+          _isInitialized[videoId] == true) {
+        // Update context if needed
+        _controllerContexts[videoId] = context;
+        return _controllers[videoId];
+      }
 
-    // Create headers with authentication if available
-    final headers = <String, String>{
-      'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
-      'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
-    };
+      // Create headers with authentication if available
+      final headers = <String, String>{
+        'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
+        'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+      };
 
-    if (authToken != null) {
-      headers['Authorization'] = 'Bearer $authToken';
-    }
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
 
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(videoUrl),
-      httpHeaders: headers,
-    );
-    _controllers[videoId] = controller;
-    _isInitialized[videoId] = false;
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+        httpHeaders: headers,
+      );
+      _controllers[videoId] = controller;
+      _isInitialized[videoId] = false;
+      _controllerContexts[videoId] = context;
 
-    try {
-      await controller.initialize();
-      _isInitialized[videoId] = true;
+      try {
+        await controller.initialize();
+        _isInitialized[videoId] = true;
 
-      controller.setLooping(true);
+        controller.setLooping(true);
 
-      return controller;
-    } catch (e) {
-      print('Error initializing video controller for $videoId: $e');
-      _controllers.remove(videoId);
-      _isInitialized.remove(videoId);
-      return null;
-    }
+        return controller;
+      } catch (e) {
+        print('Error initializing video controller for $videoId: $e');
+        _controllers.remove(videoId);
+        _isInitialized.remove(videoId);
+        _controllerContexts.remove(videoId);
+        return null;
+      }
+    });
   }
 
   // Preload next and previous videos
@@ -65,19 +89,22 @@ class EnhancedVideoService {
       String? nextVideoUrl,
       String? previousVideoId,
       String? previousVideoUrl,
-      {String? authToken}) async {
+      {String? authToken,
+      String context = 'default'}) async {
     _currentVideoId = currentVideoId;
     _nextVideoId = nextVideoId;
     _previousVideoId = previousVideoId;
 
     // Preload next video
     if (nextVideoId != null && nextVideoUrl != null) {
-      _preloadVideo(nextVideoId, nextVideoUrl, authToken: authToken);
+      _preloadVideo(nextVideoId, nextVideoUrl,
+          authToken: authToken, context: context);
     }
 
     // Preload previous video
     if (previousVideoId != null && previousVideoUrl != null) {
-      _preloadVideo(previousVideoId, previousVideoUrl, authToken: authToken);
+      _preloadVideo(previousVideoId, previousVideoUrl,
+          authToken: authToken, context: context);
     }
 
     // Clean up old controllers
@@ -86,39 +113,43 @@ class EnhancedVideoService {
 
   // Preload a single video
   Future<void> _preloadVideo(String videoId, String videoUrl,
-      {String? authToken}) async {
-    if (_controllers.containsKey(videoId)) return;
+      {String? authToken, String context = 'default'}) async {
+    await _safeModify(() async {
+      if (_controllers.containsKey(videoId)) return;
 
-    final headers = <String, String>{
-      'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
-      'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
-    };
+      final headers = <String, String>{
+        'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
+        'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+      };
 
-    if (authToken != null) {
-      headers['Authorization'] = 'Bearer $authToken';
-    }
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
 
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(videoUrl),
-      httpHeaders: headers,
-    );
-    _controllers[videoId] = controller;
-    _isInitialized[videoId] = false;
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+        httpHeaders: headers,
+      );
+      _controllers[videoId] = controller;
+      _isInitialized[videoId] = false;
+      _controllerContexts[videoId] = context;
 
-    try {
-      await controller.initialize();
-      _isInitialized[videoId] = true;
-      controller.setLooping(true);
+      try {
+        await controller.initialize();
+        _isInitialized[videoId] = true;
+        controller.setLooping(true);
 
-      // Preload some content
-      await controller.seekTo(Duration.zero);
+        // Preload some content
+        await controller.seekTo(Duration.zero);
 
-      print('Preloaded video: $videoId');
-    } catch (e) {
-      print('Error preloading video $videoId: $e');
-      _controllers.remove(videoId);
-      _isInitialized.remove(videoId);
-    }
+        print('Preloaded video: $videoId for context: $context');
+      } catch (e) {
+        print('Error preloading video $videoId: $e');
+        _controllers.remove(videoId);
+        _isInitialized.remove(videoId);
+        _controllerContexts.remove(videoId);
+      }
+    });
   }
 
   // Clean up old controllers to prevent memory issues
@@ -141,6 +172,7 @@ class EnhancedVideoService {
       _controllers[key]?.dispose();
       _controllers.remove(key);
       _isInitialized.remove(key);
+      _controllerContexts.remove(key);
     }
   }
 
@@ -192,6 +224,24 @@ class EnhancedVideoService {
     }
     _controllers.clear();
     _isInitialized.clear();
+    _controllerContexts.clear();
+  }
+
+  // Dispose controllers for a specific context
+  void disposeContext(String context) {
+    final keysToRemove = <String>[];
+    for (final entry in _controllerContexts.entries) {
+      if (entry.value == context) {
+        keysToRemove.add(entry.key);
+      }
+    }
+
+    for (final key in keysToRemove) {
+      _controllers[key]?.dispose();
+      _controllers.remove(key);
+      _isInitialized.remove(key);
+      _controllerContexts.remove(key);
+    }
   }
 
   // Dispose specific controller
@@ -201,6 +251,20 @@ class EnhancedVideoService {
       controller.dispose();
       _controllers.remove(videoId);
       _isInitialized.remove(videoId);
+      _controllerContexts.remove(videoId);
     }
+  }
+
+  // Get controllers for a specific context
+  List<String> getControllersForContext(String context) {
+    return _controllerContexts.entries
+        .where((entry) => entry.value == context)
+        .map((entry) => entry.key)
+        .toList();
+  }
+
+  // Check if a video belongs to a specific context
+  bool isVideoInContext(String videoId, String context) {
+    return _controllerContexts[videoId] == context;
   }
 }
