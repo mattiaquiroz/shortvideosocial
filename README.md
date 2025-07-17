@@ -15,15 +15,15 @@ It is primarily for learning and testing purposes.
 
 ## Features (Planned / In Progress)
 
-- [X] User registration and login
 - [ ] Upload short videos
+- [ ] Settings
+- [X] User registration and login
 - [X] Store video metadata in the database
 - [X] Stream uploaded videos via backend
-- [ ] User profiles
-- [ ] Likes and comments
+- [X] User profiles
+- [X] Likes and comments
 - [X] Basic video feed
 - [X] Video playback with controls
-- [ ] Mobile UI using Flutter
 
 ---
 
@@ -31,7 +31,6 @@ It is primarily for learning and testing purposes.
 
 - Spring Boot (Java)
 - PostgreSQL
-- Maven for dependency management
 - Local file system used for storing video files
 
 ---
@@ -41,7 +40,7 @@ It is primarily for learning and testing purposes.
 - Flutter for cross-platform development
 - HTTP communication using the `http` package
 - File picker integration for video upload
-- Basic UI for testing core features
+- Complete Modern UI
 
 ---
 
@@ -50,6 +49,7 @@ It is primarily for learning and testing purposes.
 ### Backend
 ```bash
 # Ensure PostgreSQL is running
+# Change application-example.properties to application.properties with your db info
 # Run the Spring Boot application
 mvn spring-boot:run
 
