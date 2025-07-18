@@ -16,6 +16,7 @@ It is primarily for learning and testing purposes.
 ## Features (Planned / In Progress)
 
 - [ ] Settings
+- [ ] Notifications
 - [X] Upload short videos
 - [X] User registration and login
 - [X] Store video metadata in the database
