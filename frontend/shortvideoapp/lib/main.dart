@@ -107,7 +107,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     // Initialize screens list here where _homePageKey is available
     _screens = [
       HomePage(key: _homePageKey),
-      const CreatePage(),
+      const CreateVideoPage(),
       const ProfilePage(userId: -1, username: '', isPublicUser: false)
     ];
   }

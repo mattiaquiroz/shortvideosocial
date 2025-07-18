@@ -270,9 +270,9 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     try {
       final results = await Future.wait([
         widget.apiService.getProfileImageUrl(
-          widget.videoData['userProfilePictureUrl'],
-          userId: widget.videoData['userId'],
-        ),
+            widget.videoData['userProfilePictureUrl'],
+            userId: widget.videoData['userId'],
+            cacheBust: true),
         widget.apiService.getImageHeaders(),
       ]);
 

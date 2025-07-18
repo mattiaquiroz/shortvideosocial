@@ -11,13 +11,9 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve static files from the uploads directory
+        // Serve static files from the assets directory
         registry.addResourceHandler("/assets/**")
-                .addResourceLocations("file:./assets/", "classpath:/static/assets/");
-        
-        // Additional handler for other static content
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:./uploads/");
+                .addResourceLocations("file:./assets/");
     }
 
     @Override
@@ -32,13 +28,6 @@ public class WebConfig implements WebMvcConfigurer {
         
         // Static assets (images, etc.) - read-only access for development
         registry.addMapping("/assets/**")
-                .allowedOrigins("*")
-                .allowedMethods("GET", "HEAD", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(false);
-        
-        // Upload endpoints - read-only access
-        registry.addMapping("/uploads/**")
                 .allowedOrigins("*")
                 .allowedMethods("GET", "HEAD", "OPTIONS")
                 .allowedHeaders("*")

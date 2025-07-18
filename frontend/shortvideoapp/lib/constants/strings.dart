@@ -598,4 +598,87 @@ class AppStrings {
         AppLanguage.italian: "Impossibile caricare i video",
         AppLanguage.french: "Échec du chargement des vidéos",
       });
+
+  // Video options menu
+  static String get videoPrivacy => LocalizationService.translate({
+        AppLanguage.english: "Video privacy",
+        AppLanguage.italian: "Privacy video",
+        AppLanguage.french: "Confidentialité de la vidéo",
+      });
+
+  static String get public => LocalizationService.translate({
+        AppLanguage.english: "Public",
+        AppLanguage.italian: "Pubblico",
+        AppLanguage.french: "Public",
+      });
+
+  static String get private => LocalizationService.translate({
+        AppLanguage.english: "Private",
+        AppLanguage.italian: "Privato",
+        AppLanguage.french: "Privé",
+      });
+
+  static String get videoOptions => LocalizationService.translate({
+        AppLanguage.english: "Video options",
+        AppLanguage.italian: "Opzioni video",
+        AppLanguage.french: "Options vidéo",
+      });
+
+  static String get deleteVideo => LocalizationService.translate({
+        AppLanguage.english: "Delete video",
+        AppLanguage.italian: "Elimina video",
+        AppLanguage.french: "Supprimer la vidéo",
+      });
+
+  static String get deleteVideoConfirm => LocalizationService.translate({
+        AppLanguage.english:
+            "Are you sure you want to delete this video? This action cannot be undone.",
+        AppLanguage.italian:
+            "Sei sicuro di voler eliminare questo video? Questa azione non può essere annullata.",
+        AppLanguage.french:
+            "Êtes-vous sûr de vouloir supprimer cette vidéo? Cette action ne peut pas être annulée.",
+      });
+
+  static String get videoDeletedSuccessfully => LocalizationService.translate({
+        AppLanguage.english: "Video deleted successfully",
+        AppLanguage.italian: "Video eliminato con successo",
+        AppLanguage.french: "Vidéo supprimée avec succès",
+      });
+
+  static String get failedToDeleteVideo => LocalizationService.translate({
+        AppLanguage.english: "Failed to delete video",
+        AppLanguage.italian: "Impossibile eliminare il video",
+        AppLanguage.french: "Échec de la suppression de la vidéo",
+      });
+
+  static String get failedToUpdateVisibility => LocalizationService.translate({
+        AppLanguage.english: "Failed to update visibility",
+        AppLanguage.italian: "Impossibile aggiornare la visibilità",
+        AppLanguage.french: "Échec de la mise à jour de la visibilité",
+      });
+
+  // Error messages
+  static String get failedToLoadVideo => LocalizationService.translate({
+        AppLanguage.english: "Failed to load video",
+        AppLanguage.italian: "Impossibile caricare il video",
+        AppLanguage.french: "Échec du chargement de la vidéo",
+      });
+
+  static String get failedToLikeVideo => LocalizationService.translate({
+        AppLanguage.english: "Failed to like video",
+        AppLanguage.italian: "Impossibile mettere mi piace al video",
+        AppLanguage.french: "Échec de l'aimer la vidéo",
+      });
+
+  static String get errorLikingVideo => LocalizationService.translate({
+        AppLanguage.english: "Error liking video",
+        AppLanguage.italian: "Errore nel mettere mi piace al video",
+        AppLanguage.french: "Erreur lors de l'aimer la vidéo",
+      });
+
+  static String get failedToPostComment => LocalizationService.translate({
+        AppLanguage.english: "Failed to post comment",
+        AppLanguage.italian: "Impossibile pubblicare il commento",
+        AppLanguage.french: "Échec de la publication du commentaire",
+      });
 }

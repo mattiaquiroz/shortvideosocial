@@ -28,11 +28,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.io.IOException;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
+import java.security.SecureRandom;
 
 @RestController
 @RequestMapping("/api/videos")
@@ -56,6 +63,16 @@ public class VideoController {
 
     @Autowired
     private AuthUtil authUtil;
+
+    private static final String VIDEO_ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!_";
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private String generateVideoId(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(VIDEO_ID_CHARS.charAt(RANDOM.nextInt(VIDEO_ID_CHARS.length())));
+        }
+        return sb.toString();
+    }
 
     @GetMapping
     @Operation(summary = "Get all public videos", description = "Retrieve paginated list of public videos")
@@ -124,13 +141,26 @@ public class VideoController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update video", description = "Update an existing video")
-    public ResponseEntity<?> updateVideo(@PathVariable Long id, @Valid @RequestBody CreateVideoRequest request) {
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> updateVideo(@PathVariable Long id, @Valid @RequestBody CreateVideoRequest request, HttpServletRequest httpRequest) {
+        // Authenticate user
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(httpRequest);
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
+        }
+        User currentUser = currentUserOpt.get();
+
         Optional<Video> existingVideo = videoRepository.findById(id);
         if (!existingVideo.isPresent()) {
             return ResponseEntity.notFound().build();
         }
 
         Video video = existingVideo.get();
+        // Check ownership
+        if (!video.getUser().getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You can only update your own videos");
+        }
+
         video.setDescription(request.getDescription());
         video.setVideoUrl(request.getVideoUrl());
         video.setThumbnailUrl(request.getThumbnailUrl());
@@ -142,11 +172,58 @@ public class VideoController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete video", description = "Delete a video")
-    public ResponseEntity<Void> deleteVideo(@PathVariable Long id) {
-        if (!videoRepository.existsById(id)) {
+    @Operation(summary = "Delete video", description = "Deletes a video")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> deleteVideo(@PathVariable Long id, HttpServletRequest httpRequest) {
+        // Authenticate user
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(httpRequest);
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
+        }
+        User currentUser = currentUserOpt.get();
+
+        Optional<Video> existingVideo = videoRepository.findById(id);
+        if (!existingVideo.isPresent()) {
             return ResponseEntity.notFound().build();
         }
+        Video video = existingVideo.get();
+        // Check ownership
+        if (!video.getUser().getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You can only delete your own videos");
+        }
+
+        // Delete the video folder and files 
+        // TODO: Maybe just add a flag to delete the video in the database, and periodically delete the files
+        /*try {
+            if (video.getVideoUrl() == null || video.getVideoUrl().isEmpty()) {
+                return ResponseEntity.badRequest().body("Video URL is required");
+            }
+    
+            // Extract the folder path from the video URL
+            // Video URL format: "assets/videos/user_{userId}/{videoId}/{videoId}.mp4"
+            String videoUrl = video.getVideoUrl();
+            Path videoPath = Paths.get(videoUrl);
+            
+            // Get the parent directory (the video folder)
+            Path videoFolder = videoPath.getParent();
+            
+            if (videoFolder != null && Files.exists(videoFolder)) {
+                // Delete all files in the folder first
+                Files.walk(videoFolder)
+                    .sorted((a, b) -> b.compareTo(a)) // Sort in reverse order to delete files before directories
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            System.err.println("Error deleting file: " + path + " - " + e.getMessage());
+                        }
+                    });
+            }
+        } catch (IOException e) {
+            // Log the error but continue with database deletion
+            System.err.println("Error deleting video folder: " + e.getMessage());
+        }*/
+
         videoRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -214,6 +291,69 @@ public class VideoController {
         Page<Video> videos = videoRepository.findByUserIdAndIsPublicOrderByCreatedAtDesc(userId, false, pageable);
         Page<VideoDTO> videoDTOs = videos.map(this::convertToDTO);
         return ResponseEntity.ok(videoDTOs);
+    }
+
+    @PatchMapping("/{id}/visibility")
+    @Operation(summary = "Update video visibility", description = "Set a video as public or private (requires authentication)")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> updateVideoVisibility(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> payload,
+            HttpServletRequest request) {
+        Optional<User> currentUser = authUtil.getCurrentUser(request);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new java.util.HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "Authentication required");
+                    }});
+        }
+
+        Optional<Video> videoOpt = videoRepository.findById(id);
+        if (videoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new java.util.HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "Video not found");
+                    }});
+        }
+
+        Video video = videoOpt.get();
+        // Only the owner can change visibility
+        if (!video.getUser().getId().equals(currentUser.get().getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new java.util.HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "You can only change visibility of your own videos");
+                    }});
+        }
+
+        if (!payload.containsKey("isPublic")) {
+            return ResponseEntity.badRequest()
+                    .body(new java.util.HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "Missing isPublic field");
+                    }});
+        }
+
+        Boolean isPublic;
+        try {
+            isPublic = Boolean.valueOf(payload.get("isPublic").toString());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new java.util.HashMap<String, Object>() {{
+                        put("success", false);
+                        put("message", "Invalid isPublic value");
+                    }});
+        }
+
+        video.setIsPublic(isPublic);
+        videoRepository.save(video);
+
+        return ResponseEntity.ok(new java.util.HashMap<String, Object>() {{
+            put("success", true);
+            put("isPublic", video.getIsPublic());
+        }});
     }
 
     @GetMapping("/user/{userId}/liked")
@@ -527,6 +667,64 @@ public class VideoController {
         }
     }
 
+    @PostMapping("/upload")
+    @Operation(summary = "Upload video", description = "Upload a new video file and thumbnail (requires authentication)")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> uploadVideo(
+            @RequestParam("video") MultipartFile videoFile,
+            @RequestParam("thumbnail") MultipartFile thumbnailFile,
+            @RequestParam("description") String description,
+            @RequestParam("isPublic") boolean isPublic,
+            HttpServletRequest request) {
+        try {
+            // Authenticate user
+            var userOpt = authUtil.getCurrentUser(request);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
+            }
+            User user = userOpt.get();
+
+            // Validate files
+            if (videoFile.isEmpty()) {
+                return ResponseEntity.badRequest().body("No video file uploaded");
+            }
+            if (thumbnailFile.isEmpty()) {
+                return ResponseEntity.badRequest().body("No thumbnail file uploaded");
+            }
+
+            // Generate unique 11-character videoId
+            String videoId = generateVideoId(11);
+            String baseDir = "assets/videos/user_" + user.getId() + "/" + videoId + "/";
+            Path uploadDir = Paths.get(baseDir);
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+
+            // Save video file
+            String videoFilename = videoId + ".mp4";
+            Path videoPath = uploadDir.resolve(videoFilename);
+            videoFile.transferTo(videoPath);
+
+            // Save thumbnail file
+            String thumbFilename = videoId + ".jpg";
+            Path thumbPath = uploadDir.resolve(thumbFilename);
+            thumbnailFile.transferTo(thumbPath);
+
+            // Now create and save the Video entity with all required fields
+            Video video = new Video();
+            video.setDescription(description);
+            video.setIsPublic(isPublic);
+            video.setUser(user);
+            video.setVideoUrl(baseDir + videoFilename);
+            video.setThumbnailUrl(baseDir + thumbFilename);
+            Video savedVideo = videoRepository.save(video);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(savedVideo));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload video: " + e.getMessage());
+        }
+    }
+
     private VideoDTO convertToDTO(Video video) {
         UserDTO userDTO = new UserDTO(
             video.getUser().getId(),
@@ -554,10 +752,6 @@ public class VideoController {
             video.getCreatedAt(),
             userDTO
         );
-    }
-
-    private CommentDTO convertToCommentDTO(Comment comment) {
-        return convertToCommentDTO(comment, null);
     }
 
     private CommentDTO convertToCommentDTO(Comment comment, User currentUser) {

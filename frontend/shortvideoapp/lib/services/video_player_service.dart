@@ -202,7 +202,9 @@ class EnhancedVideoService {
 
   // Pause all videos
   Future<void> pauseAllVideos() async {
-    for (final controller in _controllers.values) {
+    final controllersCopy =
+        List<VideoPlayerController>.from(_controllers.values);
+    for (final controller in controllersCopy) {
       await controller.pause();
     }
   }

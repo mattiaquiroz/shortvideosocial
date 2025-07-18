@@ -72,7 +72,7 @@ public class VideoStreamingController {
 
         // Construct file path
         String videoPath = video.getVideoUrl();
-        if (!videoPath.startsWith("assets/") && !videoPath.startsWith("uploads/")) {
+        if (!videoPath.startsWith("assets/")) {
             videoPath = "assets/" + videoPath;
         }
 
@@ -184,8 +184,8 @@ public class VideoStreamingController {
         if (profileImagePath == null || profileImagePath.isEmpty()) {
             profileImagePath = "assets/users/default_picture.jpg";
         } else {
-            // Ensure path starts with assets/ or uploads/
-            if (!profileImagePath.startsWith("assets/") && !profileImagePath.startsWith("uploads/")) {
+            // Ensure path starts with assets/
+            if (!profileImagePath.startsWith("assets/")) {
                 profileImagePath = "assets/users/" + profileImagePath;
             }
         }
@@ -209,6 +209,7 @@ public class VideoStreamingController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
+                .header("Cache-Control", "public, max-age=3600") // Cache for 1 hour
                 .body(resource);
     }
 

@@ -78,6 +78,7 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
       'viewsCount': (videoData['viewsCount'] ?? 0).toString(),
       'createdAt': videoData['createdAt'] ?? '',
       'userId': (videoData['user']?['id'] ?? '').toString(),
+      'isPublic': (videoData['isPublic'] ?? '').toString(),
     };
   }
 }
@@ -118,6 +119,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
   double _playbackSpeed = 1.0;
   bool _isCommentFocused = false;
   bool _isPostingComment = false;
+  bool _isOwnVideo = false;
 
   // Cache profile image data to prevent loading loop
   String? _profileImageUrl;
@@ -131,6 +133,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
     _initializePlayer();
     _loadLikeStatus();
     _loadProfileImageData();
+    _checkIfOwnVideo();
 
     // Add comment focus listener
     _commentFocusNode.addListener(() {
@@ -145,12 +148,27 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
     });
   }
 
+  Future<void> _checkIfOwnVideo() async {
+    try {
+      final currentUser = await widget.apiService.getCurrentUser();
+      if (currentUser != null) {
+        final videoUserId = int.tryParse(widget.videoData['userId'] ?? '') ?? 0;
+        setState(() {
+          _isOwnVideo = currentUser.id == videoUserId;
+        });
+      }
+    } catch (e) {
+      print('Error checking if own video: $e');
+    }
+  }
+
   Future<void> _loadProfileImageData() async {
     try {
       final results = await Future.wait([
         widget.apiService.getProfileImageUrl(
           widget.videoData['userProfilePictureUrl'],
           userId: widget.videoData['userId'],
+          cacheBust: true,
         ),
         widget.apiService.getImageHeaders(),
       ]);
@@ -220,7 +238,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       print('Error initializing video player: $e');
       setState(() {
         _hasError = true;
-        _errorMessage = 'Failed to load video: $e';
+        _errorMessage = '${AppStrings.failedToLoadVideo}: $e';
       });
     }
   }
@@ -252,7 +270,8 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response['message'] ?? 'Failed to like video'),
+              content:
+                  Text(response['message'] ?? AppStrings.failedToLikeVideo),
               backgroundColor: Colors.red,
             ),
           );
@@ -263,7 +282,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error liking video: $e'),
+            content: Text('${AppStrings.errorLikingVideo}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -339,7 +358,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _initializePlayer,
-                child: const Text('Retry'),
+                child: Text(AppStrings.retry),
               ),
             ],
           ),
@@ -479,6 +498,15 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                           Colors.white,
                           widget.videoData['sharesCount']!,
                         ),
+                        if (_isOwnVideo) ...[
+                          const SizedBox(height: 24),
+                          _buildActionButton(
+                            Icons.more_horiz,
+                            Colors.white,
+                            '',
+                            onTap: _showVideoOptionsSheet,
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         _buildProfileButton(),
                       ],
@@ -818,7 +846,7 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Failed to post comment'),
+          content: Text(response['message'] ?? AppStrings.failedToPostComment),
           backgroundColor: Colors.red,
         ),
       );
@@ -830,5 +858,190 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
       yield controller.value.position;
       await Future.delayed(const Duration(milliseconds: 100));
     }
+  }
+
+  void _showVideoOptionsSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            bool isPublic = widget.videoData['isPublic'] == 'true';
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        top: 20, left: 20, right: 20, bottom: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        AppStrings.videoPrivacy,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.public,
+                        color: isPublic ? Colors.green : null),
+                    title: Text(AppStrings.public),
+                    trailing: isPublic
+                        ? const Icon(Icons.check, color: Colors.green)
+                        : null,
+                    onTap: isPublic
+                        ? null
+                        : () async {
+                            final response =
+                                await widget.apiService.setVideoVisibility(
+                              widget.videoId,
+                              true,
+                            );
+                            if (response['success'] == true) {
+                              setState(() {
+                                widget.videoData['isPublic'] = 'true';
+                              });
+                              setModalState(() => isPublic = true);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(response['message'] ??
+                                      AppStrings.failedToUpdateVisibility),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                  ),
+                  ListTile(
+                    leading:
+                        Icon(Icons.lock, color: !isPublic ? Colors.red : null),
+                    title: Text(AppStrings.private),
+                    trailing: !isPublic
+                        ? const Icon(Icons.check, color: Colors.red)
+                        : null,
+                    onTap: !isPublic
+                        ? null
+                        : () async {
+                            final response =
+                                await widget.apiService.setVideoVisibility(
+                              widget.videoId,
+                              false,
+                            );
+                            if (response['success'] == true) {
+                              setState(() {
+                                widget.videoData['isPublic'] = 'false';
+                              });
+                              setModalState(() => isPublic = false);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(response['message'] ??
+                                      AppStrings.failedToUpdateVisibility),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                  ),
+                  const SizedBox(height: 16),
+                  // Video options section
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(left: 20, right: 20, bottom: 8),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        AppStrings.videoOptions,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Delete video button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.delete),
+                        label: Text(AppStrings.deleteVideo),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text(AppStrings.deleteVideo),
+                              content: Text(AppStrings.deleteVideoConfirm),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: Text(AppStrings.cancel),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red),
+                                  child: Text(AppStrings.delete),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            // Call API to delete video
+                            final response = await widget.apiService
+                                .deleteVideo(widget.videoId);
+                            if (response['success'] == true ||
+                                response['status'] == 204) {
+                              if (mounted) {
+                                Navigator.of(context)
+                                    .pop(); // Close bottom sheet
+                                Navigator.of(context)
+                                    .pop(); // Close video player
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          AppStrings.videoDeletedSuccessfully),
+                                      backgroundColor: Colors.green),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(response['message'] ??
+                                          AppStrings.failedToDeleteVideo),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

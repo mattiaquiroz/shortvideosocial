@@ -5,6 +5,7 @@ import 'package:shortvideoapp/screens/main/single_video_player.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
+import 'package:shortvideoapp/screens/main/edit_profile.dart';
 
 class Profile extends StatelessWidget {
   final int userId;
@@ -137,12 +138,13 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<String> _getProfileImageUrl() async {
+  Future<String> _getProfileImageUrl({bool cacheBust = false}) async {
     String? profileUrl = currentUser?.profilePictureUrl;
     final userId = currentUser?.id.toString();
 
     if (userId != null) {
-      return await _apiService.getProfileImageUrl(profileUrl, userId: userId);
+      return await _apiService.getProfileImageUrl(profileUrl,
+          userId: userId, cacheBust: cacheBust);
     }
 
     return _apiService.getProfileImageUrl(userId);
@@ -469,7 +471,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 const SizedBox(height: 16),
                                 FutureBuilder<List<dynamic>>(
                                   future: Future.wait([
-                                    _getProfileImageUrl(),
+                                    _getProfileImageUrl(cacheBust: true),
                                     _apiService.getImageHeaders(),
                                   ]),
                                   builder: (context, snapshot) {
@@ -559,14 +561,33 @@ class _ProfilePageState extends State<ProfilePage> {
                                     const SizedBox(width: 8),
                                     if (isOwnProfile)
                                       IconButton(
-                                        onPressed: () {},
+                                        onPressed: () async {
+                                          if (currentUser == null) return;
+                                          final result = await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  EditProfilePage(
+                                                userId: currentUser.id,
+                                                initialUsername:
+                                                    currentUser.username ?? '',
+                                                initialBio: currentUser.bio,
+                                                initialProfilePictureUrl:
+                                                    currentUser
+                                                        .profilePictureUrl,
+                                              ),
+                                            ),
+                                          );
+                                          if (result == true) {
+                                            _loadUserProfile();
+                                          }
+                                        },
                                         icon: const Icon(Icons.edit,
                                             color: Colors.white),
                                         style: ButtonStyle(
                                           backgroundColor:
                                               WidgetStateProperty.all<Color>(
-                                            Colors.black,
-                                          ),
+                                                  Colors.black),
                                           padding: WidgetStateProperty.all<
                                               EdgeInsets>(
                                             const EdgeInsets.all(8),
@@ -581,39 +602,56 @@ class _ProfilePageState extends State<ProfilePage> {
                                   style: TextStyle(color: Colors.grey[700]),
                                 ),
                                 const SizedBox(height: 8),
-                                Card(
-                                  color:
-                                      const Color.fromARGB(255, 248, 248, 248),
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 4,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      currentUser?.bio ?? "",
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 16),
+                                if (currentUser?.bio != null)
+                                  Card(
+                                    color: const Color.fromARGB(
+                                        255, 248, 248, 248),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Text(
+                                        currentUser?.bio ?? "",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
                                     ),
                                   ),
-                                ),
                                 const SizedBox(height: 24),
 
                                 // Tab selector
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                Stack(
                                   children: [
-                                    _buildTabIcon(Icons.grid_on, 0),
-                                    const SizedBox(width: 50),
-                                    _buildTabIcon(Icons.lock, 1),
-                                    const SizedBox(width: 50),
-                                    _buildTabIcon(Icons.favorite, 2),
+                                    // Horizontal line
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        height: 1,
+                                        color: Colors.grey[300],
+                                      ),
+                                    ),
+                                    // Tab icons
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _buildTabIcon(Icons.grid_on, 0),
+                                        const SizedBox(width: 50),
+                                        _buildTabIcon(Icons.lock, 1),
+                                        const SizedBox(width: 50),
+                                        _buildTabIcon(Icons.favorite, 2),
+                                      ],
+                                    ),
                                   ],
                                 ),
 
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 8),
                               ],
                             ),
                           ),

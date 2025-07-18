@@ -53,6 +53,32 @@ class _CommentsSectionState extends State<CommentsSection> {
     super.dispose();
   }
 
+  // Helper method to load profile image data
+  Future<List<dynamic>> _loadProfileImageData(
+      String? profileUrl, String? userId) async {
+    try {
+      if (userId == null || userId.isEmpty) {
+        return ["null", {}];
+      }
+
+      final results = await Future.wait([
+        widget.apiService
+            .getProfileImageUrl(profileUrl, userId: userId, cacheBust: false),
+        widget.apiService.getImageHeaders(),
+      ]);
+
+      final imageUrl = results[0] as String;
+
+      if (imageUrl == "null" || imageUrl.isEmpty) {
+        return ["null", {}];
+      }
+
+      return results;
+    } catch (e) {
+      return ["null", {}];
+    }
+  }
+
   _loadCurrentUser() async {
     final localUser = await widget.apiService.getCurrentUser();
     if (localUser != null) {
@@ -292,34 +318,83 @@ class _CommentsSectionState extends State<CommentsSection> {
                 Row(
                   children: [
                     // Profile picture
-                    FutureBuilder<String>(
-                      future: ApiService().getProfileImageUrl(
+                    FutureBuilder<List<dynamic>>(
+                      future: _loadProfileImageData(
                           currentUser?.profilePictureUrl,
-                          userId: currentUser?.id.toString()),
+                          currentUser?.id.toString()),
                       builder: (context, snapshot) {
-                        final imageUrl = snapshot.data ?? "null";
-                        return FutureBuilder<Map<String, String>>(
-                          future: ApiService().getImageHeaders(),
-                          builder: (context, headerSnap) {
-                            final headers = headerSnap.data ?? {};
-                            return CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.grey[300],
-                              child: ClipOval(
-                                child: Image.network(
-                                  imageUrl,
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.grey[300],
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.grey),
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.grey[300],
+                            child: Icon(Icons.person,
+                                size: 18, color: Colors.grey[600]),
+                          );
+                        }
+
+                        final imageUrl = snapshot.data?[0] as String? ?? "null";
+                        final headers =
+                            snapshot.data?[1] as Map<String, String>? ?? {};
+
+                        if (imageUrl == "null" || imageUrl.isEmpty) {
+                          return CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.grey[300],
+                            child: Icon(Icons.person,
+                                size: 18, color: Colors.grey[600]),
+                          );
+                        }
+
+                        return CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.grey[300],
+                          child: ClipOval(
+                            child: Image.network(
+                              imageUrl,
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                              headers: headers,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(Icons.person,
+                                    size: 18, color: Colors.grey[600]);
+                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) {
+                                  return child;
+                                }
+                                return const SizedBox(
                                   width: 36,
                                   height: 36,
-                                  fit: BoxFit.cover,
-                                  headers: headers,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(Icons.person,
-                                        size: 18, color: Colors.grey[600]);
-                                  },
-                                ),
-                              ),
-                            );
-                          },
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.grey),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -355,29 +430,31 @@ class _CommentsSectionState extends State<CommentsSection> {
                           onSubmitted: (_) => _postComment(),
                           style: const TextStyle(fontSize: 15),
                           onChanged: (text) {
-                            setState(
-                                () {}); // Trigger rebuild when text changes
+                            // The send button state is now handled by the controller listener
                           },
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                        icon: isPostingComment
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Icon(Icons.send_rounded,
-                                color: _commentController.text.trim().isEmpty
-                                    ? Colors.grey
-                                    : Colors.red),
-                        onPressed: isPostingComment ||
-                                _commentController.text.trim().isEmpty
-                            ? null
-                            : _postComment),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _commentController,
+                      builder: (context, value, child) {
+                        final isEmpty = value.text.trim().isEmpty;
+                        return IconButton(
+                          icon: isPostingComment
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.send_rounded,
+                                  color: isEmpty ? Colors.grey : Colors.red),
+                          onPressed:
+                              isPostingComment || isEmpty ? null : _postComment,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ],
@@ -427,51 +504,7 @@ class _CommentsSectionState extends State<CommentsSection> {
 
     return GestureDetector(
       onLongPress: isOwnComment
-          ? () async {
-              final action = await showMenu<String>(
-                context: context,
-                position: const RelativeRect.fromLTRB(100, 100, 100, 100),
-                items: [
-                  const PopupMenuItem<String>(
-                    value: 'copy',
-                    child: Text('Copy'),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
-                ],
-              );
-              if (action == 'copy') {
-                Clipboard.setData(ClipboardData(text: comment['text'] ?? ''));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Copied to clipboard')),
-                );
-              } else if (action == 'delete') {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Delete Comment'),
-                    content: const Text(
-                        'Are you sure you want to delete this comment?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete',
-                            style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  await _deleteComment(comment['id'].toString());
-                }
-              }
-            }
+          ? () => _showCommentActionsBottomSheet(context, comment)
           : null,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
@@ -508,33 +541,79 @@ class _CommentsSectionState extends State<CommentsSection> {
                       );
                     }
                   : null,
-              child: FutureBuilder<String>(
-                future:
-                    ApiService().getProfileImageUrl(profileUrl, userId: userId),
+              child: FutureBuilder<List<dynamic>>(
+                future: _loadProfileImageData(profileUrl, userId),
                 builder: (context, snapshot) {
-                  final imageUrl = snapshot.data ?? "null";
-                  return FutureBuilder<Map<String, String>>(
-                    future: ApiService().getImageHeaders(),
-                    builder: (context, headerSnap) {
-                      final headers = headerSnap.data ?? {};
-                      return CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.grey[300],
-                        child: ClipOval(
-                          child: Image.network(
-                            imageUrl,
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.grey[300],
+                      child: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.grey),
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.grey[300],
+                      child:
+                          Icon(Icons.person, size: 18, color: Colors.grey[600]),
+                    );
+                  }
+
+                  final imageUrl = snapshot.data?[0] as String? ?? "null";
+                  final headers =
+                      snapshot.data?[1] as Map<String, String>? ?? {};
+
+                  if (imageUrl == "null" || imageUrl.isEmpty) {
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.grey[300],
+                      child:
+                          Icon(Icons.person, size: 18, color: Colors.grey[600]),
+                    );
+                  }
+
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.grey[300],
+                    child: ClipOval(
+                      child: Image.network(
+                        imageUrl,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        headers: headers,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(Icons.person,
+                              size: 18, color: Colors.grey[600]);
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          }
+                          return const SizedBox(
                             width: 36,
                             height: 36,
-                            fit: BoxFit.cover,
-                            headers: headers,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(Icons.person,
-                                  size: 18, color: Colors.grey[600]);
-                            },
-                          ),
-                        ),
-                      );
-                    },
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.grey),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   );
                 },
               ),
@@ -669,6 +748,64 @@ class _CommentsSectionState extends State<CommentsSection> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  Future<void> _showCommentActionsBottomSheet(
+      BuildContext context, Map<String, dynamic> comment) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Copy'),
+                onTap: () => Navigator.pop(context, 'copy'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title:
+                    const Text('Delete', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (result == 'copy') {
+      Clipboard.setData(ClipboardData(text: comment['text'] ?? ''));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Copied to clipboard')),
+      );
+    } else if (result == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Comment'),
+          content: const Text('Are you sure you want to delete this comment?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await _deleteComment(comment['id'].toString());
+      }
     }
   }
 

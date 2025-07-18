@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shortvideoapp/services/storage_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
 import 'package:shortvideoapp/models/public_user_model.dart';
+import 'dart:io';
+import 'package:dio/dio.dart';
 
 class ApiService {
   static const String baseUrl = 'http://10.0.2.2:8080/api';
@@ -634,11 +636,15 @@ class ApiService {
 
   // Get profile image URL with authentication
   Future<String> getProfileImageUrl(String? profilePictureUrl,
-      {String? userId}) async {
+      {String? userId, bool cacheBust = false}) async {
     if (userId != null && userId.isNotEmpty) {
       final token = await _storageService.getToken();
       if (token != null) {
-        return '$baseUrl/stream/profile-image/$userId';
+        String url = '$baseUrl/stream/profile-image/$userId';
+        if (cacheBust) {
+          url += '?t=${DateTime.now().millisecondsSinceEpoch}';
+        }
+        return url;
       }
     }
 
@@ -673,5 +679,186 @@ class ApiService {
       'User-Agent': 'ShortVideoApp/1.0 (Mobile)',
       'Accept': 'image/*,*/*;q=0.9',
     };
+  }
+
+  // Upload profile picture
+  Future<Map<String, dynamic>> uploadProfilePicture(File imageFile) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+      final uri = Uri.parse('$baseUrl/users/me/profile-picture');
+      var request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files
+          .add(await http.MultipartFile.fromPath('file', imageFile.path));
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {'success': true, 'url': data['url']};
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to upload image'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Update user profile
+  Future<Map<String, dynamic>> updateUserProfile({
+    required int userId,
+    String? username,
+    String? bio,
+    String? profilePictureUrl,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+      final uri = Uri.parse('$baseUrl/users/$userId');
+      final Map<String, dynamic> body = {};
+      if (username != null) body['username'] = username;
+      if (bio != null) body['bio'] = bio;
+      if (profilePictureUrl != null)
+        body['profilePictureUrl'] = profilePictureUrl;
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 &&
+          (data['success'] == null || data['success'] == true)) {
+        return {'success': true, 'user': data['user']};
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to update profile'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error:  [${e.toString()}'};
+    }
+  }
+
+  // Set video visibility (public/private)
+  Future<Map<String, dynamic>> setVideoVisibility(
+      String videoId, bool isPublic) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+      final uri = Uri.parse('$baseUrl/videos/$videoId/visibility');
+      final response = await http.patch(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'isPublic': isPublic}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {'success': true};
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to update visibility'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Delete video by ID
+  Future<Map<String, dynamic>> deleteVideo(String videoId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+      final response = await http.delete(
+        Uri.parse('$baseUrl/videos/$videoId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 204) {
+        return {'success': true, 'status': 204};
+      } else {
+        String msg = 'Failed to delete video';
+        try {
+          final data = jsonDecode(response.body);
+          msg = data['message'] ?? msg;
+        } catch (_) {}
+        return {
+          'success': false,
+          'message': msg,
+          'status': response.statusCode
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error:  [${e.toString()}'};
+    }
+  }
+
+  static Future<bool> uploadVideoWithThumbnail(
+    File videoFile,
+    File thumbnailFile,
+    String description,
+    bool isPublic, {
+    void Function(double)? onProgress,
+  }) async {
+    print('uploadVideoWithThumbnail called (dio)');
+    try {
+      final token = await StorageService().getToken();
+      final dio = Dio();
+      final formData = FormData.fromMap({
+        'description': description,
+        'isPublic': isPublic.toString(),
+        'video': await MultipartFile.fromFile(videoFile.path,
+            filename: videoFile.path.split('/').last),
+        'thumbnail': await MultipartFile.fromFile(thumbnailFile.path,
+            filename: thumbnailFile.path.split('/').last),
+      });
+      final response = await dio.post(
+        '$baseUrl/videos/upload',
+        data: formData,
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+        onSendProgress: (sent, total) {
+          if (onProgress != null && total > 0) {
+            onProgress(sent / total);
+          }
+        },
+      );
+      print('Dio response: ${response.statusCode} - ${response.data}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Upload successful');
+        return true;
+      } else {
+        print('Upload failed: ${response.statusCode} - ${response.data}');
+        return false;
+      }
+    } catch (e) {
+      print('Exception in uploadVideoWithThumbnail (dio): ${e.toString()}');
+      return false;
+    }
   }
 }
