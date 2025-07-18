@@ -24,6 +24,7 @@ It is primarily for learning and testing purposes.
 - [X] Edit profiles
 - [X] Likes and comments
 - [X] Basic video feed
+- [X] Video visibility/deletion
 - [X] Video playback with controls
 
 ---
