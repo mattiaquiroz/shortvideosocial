@@ -15,8 +15,8 @@ It is primarily for learning and testing purposes.
 
 ## Features (Planned / In Progress)
 
-- [ ] Upload short videos
 - [ ] Settings
+- [X] Upload short videos
 - [X] User registration and login
 - [X] Store video metadata in the database
 - [X] Stream uploaded videos via backend
