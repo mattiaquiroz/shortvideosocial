@@ -21,6 +21,7 @@ It is primarily for learning and testing purposes.
 - [X] Store video metadata in the database
 - [X] Stream uploaded videos via backend
 - [X] User profiles
+- [X] Edit profiles
 - [X] Likes and comments
 - [X] Basic video feed
 - [X] Video playback with controls
