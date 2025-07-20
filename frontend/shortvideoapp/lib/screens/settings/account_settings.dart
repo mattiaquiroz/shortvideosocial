@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/constants/strings.dart';
+import 'package:shortvideoapp/services/api_service.dart';
+import 'package:shortvideoapp/models/user_model.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -9,13 +11,187 @@ class AccountSettingsPage extends StatefulWidget {
 }
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
-  String username = "Mattia";
-  String email = "mattia@example.com";
-  String phoneNumber = "+39 123 456 7890";
-  bool isPrivateAccount = false;
+  User? user;
+  bool isLoading = true;
+  bool isSaving = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUser();
+  }
+
+  Future<void> _fetchUser() async {
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+    final api = ApiService();
+    // Try to fetch the latest user data from the backend
+    final result = await api.refreshCurrentUser();
+    if (result['success'] == true && result['user'] != null) {
+      setState(() {
+        user = result['user'];
+        isLoading = false;
+      });
+    } else {
+      // Fallback to local storage if backend call fails
+      final currentUser = await api.getCurrentUser();
+      if (currentUser == null) {
+        setState(() {
+          error = 'User not found';
+          isLoading = false;
+        });
+        return;
+      }
+      setState(() {
+        user = currentUser;
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateUserField(
+      {String? username, String? email, String? fullName}) async {
+    if (user == null) return;
+    setState(() {
+      isSaving = true;
+      error = null;
+    });
+    final api = ApiService();
+    final result = await api.updateUserProfile(
+      userId: user!.id,
+      username: username,
+      email: email,
+      fullName: fullName,
+    );
+    if (result['success'] == true) {
+      setState(() {
+        if (username != null) user = user!.copyWith(username: username);
+        if (email != null) user = user!.copyWith(email: email);
+        if (fullName != null) user = user!.copyWith(fullName: fullName);
+        isSaving = false;
+      });
+    } else {
+      setState(() {
+        error = result['message'] ?? 'Failed to update';
+        isSaving = false;
+      });
+    }
+  }
+
+  Future<void> _updatePrivateAccount(bool value) async {
+    if (user == null) return;
+    setState(() {
+      isSaving = true;
+      error = null;
+    });
+    final api = ApiService();
+    final result = await api.updateUserProfile(
+      userId: user!.id,
+      isPrivateAccount: value,
+    );
+    if (result['success'] == true) {
+      setState(() {
+        user = user!.copyWith(isPrivateAccount: value);
+        isSaving = false;
+      });
+    } else {
+      setState(() {
+        error = result['message'] ?? 'Failed to update';
+        isSaving = false;
+      });
+    }
+  }
+
+  Future<void> _changePasswordDialog() async {
+    String currentPassword = '';
+    String newPassword = '';
+    String? errorMsg;
+    bool isSubmitting = false;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(AppStrings.changePassword),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    obscureText: true,
+                    decoration:
+                        InputDecoration(labelText: AppStrings.currentPassword),
+                    onChanged: (v) => currentPassword = v,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    obscureText: true,
+                    decoration:
+                        InputDecoration(labelText: AppStrings.newPassword),
+                    onChanged: (v) => newPassword = v,
+                  ),
+                  if (errorMsg != null) ...[
+                    const SizedBox(height: 8),
+                    Text(errorMsg!, style: const TextStyle(color: Colors.red)),
+                  ]
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(AppStrings.cancel),
+                ),
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setState(() => isSubmitting = true);
+                          final api = ApiService();
+                          final result = await api.changePassword(
+                            currentPassword: currentPassword,
+                            newPassword: newPassword,
+                          );
+                          if (result['success'] == true) {
+                            Navigator.pop(context);
+                          } else {
+                            setState(() {
+                              errorMsg = result['message'] ??
+                                  'Failed to change password';
+                              isSubmitting = false;
+                            });
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : Text(AppStrings.save),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (error != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(AppStrings.accountSettings)),
+        body: Center(child: Text(error!)),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -43,32 +219,31 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             _buildSection(AppStrings.profileInformation, [
               _buildSettingItem(
                 icon: Icons.person,
-                title: AppStrings.username,
-                subtitle: username,
-                onTap: () =>
-                    _showEditDialog(AppStrings.username, username, (value) {
-                  setState(() => username = value);
+                title: AppStrings.fullName,
+                subtitle:
+                    (user!.fullName == null || user!.fullName!.trim().isEmpty)
+                        ? AppStrings.addFullName
+                        : user!.fullName!,
+                onTap: () => _showEditDialog(
+                    AppStrings.fullName, user!.fullName ?? '', (value) async {
+                  await _updateUserField(fullName: value);
                 }),
               ),
               _buildSettingItem(
                 icon: Icons.email,
                 title: AppStrings.email,
-                subtitle: email,
-                onTap: () => _showEditDialog(AppStrings.email, email, (value) {
-                  setState(() => email = value);
+                subtitle: user!.email,
+                onTap: () => _showEditDialog(AppStrings.email, user!.email,
+                    (value) async {
+                  await _updateUserField(email: value);
                 }),
               ),
               _buildSettingItem(
-                icon: Icons.phone,
-                title: AppStrings.phoneNumber,
-                subtitle: phoneNumber,
-                onTap: () => _showEditDialog(
-                  AppStrings.phoneNumber,
-                  phoneNumber,
-                  (value) {
-                    setState(() => phoneNumber = value);
-                  },
-                ),
+                icon: Icons.lock,
+                title: AppStrings.changePassword ?? 'Change Password',
+                subtitle: AppStrings.changePasswordDesc ??
+                    'Change your account password',
+                onTap: _changePasswordDialog,
               ),
             ]),
 
@@ -80,10 +255,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 icon: Icons.lock,
                 title: AppStrings.privateAccount,
                 subtitle: AppStrings.privateAccountDesc,
-                value: isPrivateAccount,
-                onChanged: (value) {
-                  setState(() => isPrivateAccount = value);
-                },
+                value: user!.isPrivateAccount,
+                onChanged:
+                    isSaving ? null : (value) => _updatePrivateAccount(value),
               ),
             ]),
 
@@ -183,7 +357,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

@@ -12,12 +12,13 @@ public class UserDTO {
     private Integer followersCount;
     private Integer followingCount;
     private LocalDateTime createdAt;
+    private boolean privateAccount;
 
     public UserDTO() {}
 
     public UserDTO(Long id, String username, String email, String fullName, 
                    String profilePictureUrl, String bio, Integer followersCount, 
-                   Integer followingCount, LocalDateTime createdAt) {
+                   Integer followingCount, LocalDateTime createdAt, boolean privateAccount) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -27,6 +28,7 @@ public class UserDTO {
         this.followersCount = followersCount;
         this.followingCount = followingCount;
         this.createdAt = createdAt;
+        this.privateAccount = privateAccount;
     }
 
     public Long getId() { return id; }
@@ -55,4 +57,7 @@ public class UserDTO {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public boolean isPrivateAccount() { return privateAccount; }
+    public void setPrivateAccount(boolean privateAccount) { this.privateAccount = privateAccount; }
 } 

@@ -5,6 +5,7 @@ import 'package:shortvideoapp/services/video_player_service.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:video_player/video_player.dart';
 import 'package:shortvideoapp/screens/main/comments_section.dart';
+import 'package:shortvideoapp/screens/main/share_to_chat_modal.dart';
 
 class SingleVideoPlayerScreen extends StatefulWidget {
   final Map<String, dynamic> videoData;
@@ -25,12 +26,48 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
 
   // Generate a unique context ID for this instance
   late final String _uniqueContextId;
+  Map<String, dynamic>? _fullVideoData;
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _uniqueContextId =
         'single_ 2${DateTime.now().millisecondsSinceEpoch}_${widget.videoData['id'] ?? ''}';
+    _loadFullVideoData();
+  }
+
+  Future<void> _loadFullVideoData() async {
+    try {
+      // If we only have an ID, fetch the full video data
+      if (widget.videoData.length == 1 && widget.videoData.containsKey('id')) {
+        final result =
+            await _apiService.getVideoById(widget.videoData['id'].toString());
+        if (result['success']) {
+          setState(() {
+            _fullVideoData = result['video'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _error = result['message'];
+            _isLoading = false;
+          });
+        }
+      } else {
+        // We already have full video data
+        setState(() {
+          _fullVideoData = widget.videoData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load video: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -54,13 +91,37 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
       ),
       body: Container(
         color: Colors.black,
-        child: SingleEnhancedVideoPlayer(
-          videoId: widget.videoData['id']?.toString() ?? '',
-          videoData: _convertVideoData(widget.videoData),
-          apiService: _apiService,
-          autoPlay: true,
-          contextId: _uniqueContextId, // pass the unique context ID
-        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.white, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: const TextStyle(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadFullVideoData,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : SingleEnhancedVideoPlayer(
+                    videoId: _fullVideoData!['id']?.toString() ?? '',
+                    videoData: _convertVideoData(_fullVideoData!),
+                    apiService: _apiService,
+                    autoPlay: true,
+                    contextId: _uniqueContextId,
+                  ),
       ),
     );
   }
@@ -497,6 +558,25 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                           Icons.share,
                           Colors.white,
                           widget.videoData['sharesCount']!,
+                          onTap: () async {
+                            final result = await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) =>
+                                  ShareToChatModal(video: widget.videoData),
+                            );
+                            if (result == true) {
+                              setState(() {
+                                final count = int.tryParse(
+                                        widget.videoData['sharesCount'] ??
+                                            '0') ??
+                                    0;
+                                widget.videoData['sharesCount'] =
+                                    (count + 1).toString();
+                              });
+                            }
+                          },
                         ),
                         if (_isOwnVideo) ...[
                           const SizedBox(height: 24),

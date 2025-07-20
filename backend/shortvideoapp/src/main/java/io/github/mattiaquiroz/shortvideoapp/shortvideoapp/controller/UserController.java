@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -48,12 +49,18 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID", description = "Retrieve a user by their ID")
-    public ResponseEntity<PublicUserDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<?> getUserById(@PathVariable Long id, HttpServletRequest request) {
+        var currentUserOpt = authUtil.getCurrentUser(request);
         Optional<User> user = userRepository.findById(id);
-        if (user.isPresent()) {
-            return ResponseEntity.ok(convertToPublicDTO(user.get()));
-        } else {
+        if (user.isEmpty()) {
             return ResponseEntity.notFound().build();
+        }
+        if (currentUserOpt.isPresent() && currentUserOpt.get().getId().equals(id)) {
+            // Return full user info for self
+            return ResponseEntity.ok(convertToDTO(user.get()));
+        } else {
+            // Return public info for others
+            return ResponseEntity.ok(convertToPublicDTO(user.get()));
         }
     }
 
@@ -108,7 +115,9 @@ public class UserController {
         user.setFullName(request.getFullName());
         user.setBio(request.getBio());
         user.setProfilePictureUrl(request.getProfilePictureUrl());
-
+        if (request.getPrivateAccount() != null) {
+            user.setPrivateAccount(request.getPrivateAccount());
+        }
         User updatedUser = userRepository.save(user);
         return ResponseEntity.ok(convertToDTO(updatedUser));
     }
@@ -156,6 +165,9 @@ public class UserController {
         if (request.getProfilePictureUrl() != null) {
             user.setProfilePictureUrl(request.getProfilePictureUrl());
         }
+        if (request.getPrivateAccount() != null) {
+            user.setPrivateAccount(request.getPrivateAccount());
+        }
         User updatedUser = userRepository.save(user);
         return ResponseEntity.ok(convertToDTO(updatedUser));
     }
@@ -200,6 +212,27 @@ public class UserController {
         List<PublicUserDTO> userDTOs = users.stream()
                 .map(this::convertToPublicDTO)
                 .collect(Collectors.toList());
+        return ResponseEntity.ok(userDTOs);
+    }
+
+    @GetMapping("/all")
+    @Operation(summary = "Get all users for messaging", description = "Get all users for new message selection (excluding current user)")
+    public ResponseEntity<?> getAllUsersForMessaging(HttpServletRequest request) {
+        // Check if user is authenticated
+        var currentUserOpt = authUtil.getCurrentUser(request);
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
+        }
+        
+        User currentUser = currentUserOpt.get();
+        List<User> allUsers = userRepository.findAll();
+        
+        // Filter out the current user
+        List<PublicUserDTO> userDTOs = allUsers.stream()
+                .filter(user -> !user.getId().equals(currentUser.getId()))
+                .map(this::convertToPublicDTO)
+                .collect(Collectors.toList());
+        
         return ResponseEntity.ok(userDTOs);
     }
 
@@ -252,7 +285,8 @@ public class UserController {
             user.getBio(),
             user.getFollowersCount(),
             user.getFollowingCount(),
-            user.getCreatedAt()
+            user.getCreatedAt(),
+            user.isPrivateAccount()
         );
     }
 

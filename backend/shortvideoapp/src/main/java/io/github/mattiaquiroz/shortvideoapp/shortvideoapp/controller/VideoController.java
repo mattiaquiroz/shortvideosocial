@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
+import org.springframework.data.domain.PageImpl;
 
 @RestController
 @RequestMapping("/api/videos")
@@ -79,11 +80,12 @@ public class VideoController {
     public ResponseEntity<Page<VideoDTO>> getAllVideos(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "recent") String sortBy) {
-        
+            @RequestParam(defaultValue = "recent") String sortBy,
+            HttpServletRequest request) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Video> videos;
-        
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(request);
+        Long currentUserId = currentUserOpt.map(User::getId).orElse(null);
         switch (sortBy.toLowerCase()) {
             case "popular":
                 videos = videoRepository.findByIsPublicTrueOrderByViewsCountDesc(pageable);
@@ -96,8 +98,12 @@ public class VideoController {
                 videos = videoRepository.findByIsPublicTrueOrderByCreatedAtDesc(pageable);
                 break;
         }
-        
-        Page<VideoDTO> videoDTOs = videos.map(this::convertToDTO);
+        // Filter out videos from private accounts unless the current user is the owner
+        List<Video> filteredList = videos.getContent().stream()
+            .filter(v -> !v.getUser().isPrivateAccount() || (currentUserId != null && v.getUser().getId().equals(currentUserId)))
+            .toList();
+        Page<Video> filteredVideos = new PageImpl<>(filteredList, pageable, videos.getTotalElements());
+        Page<VideoDTO> videoDTOs = filteredVideos.map(this::convertToDTO);
         return ResponseEntity.ok(videoDTOs);
     }
 
@@ -255,12 +261,24 @@ public class VideoController {
     }
 
     @GetMapping("/user/{userId}/public")
-    @Operation(summary = "Get user's public videos", description = "Get all public videos uploaded by a specific user")
-    public ResponseEntity<Page<VideoDTO>> getUserPublicVideos(
+    @Operation(summary = "Get user's public videos", description = "Get all public videos uploaded by a specific user (requires authentication)")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> getUserPublicVideos(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        
+            @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+        Optional<User> targetUserOpt = userRepository.findById(userId);
+        if (targetUserOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        User targetUser = targetUserOpt.get();
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(request);
+        Long currentUserId = currentUserOpt.map(User::getId).orElse(null);
+        if (targetUser.isPrivateAccount() && (currentUserId == null || !currentUserId.equals(userId))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(java.util.Map.of("success", false, "message", "This account is private."));
+        }
         Pageable pageable = PageRequest.of(page, size);
         Page<Video> videos = videoRepository.findByUserIdAndIsPublicOrderByCreatedAtDesc(userId, true, pageable);
         Page<VideoDTO> videoDTOs = videos.map(this::convertToDTO);
@@ -270,23 +288,27 @@ public class VideoController {
     @GetMapping("/user/{userId}/private")
     @Operation(summary = "Get user's private videos", description = "Get all private videos uploaded by a specific user (requires authentication)")
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<Page<VideoDTO>> getUserPrivateVideos(
+    public ResponseEntity<?> getUserPrivateVideos(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
-        
-        // Check authentication and verify user can access private videos
-        Optional<User> currentUser = authUtil.getCurrentUser(request);
-        if (currentUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        Optional<User> targetUserOpt = userRepository.findById(userId);
+        if (targetUserOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
-        
-        // Users can only see their own private videos
-        if (!currentUser.get().getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        User targetUser = targetUserOpt.get();
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(request);
+        Long currentUserId = currentUserOpt.map(User::getId).orElse(null);
+        if (targetUser.isPrivateAccount() && (currentUserId == null || !currentUserId.equals(userId))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(java.util.Map.of("success", false, "message", "This account is private."));
         }
-        
+        // Only the owner can view their private videos
+        if (currentUserId == null || !currentUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(java.util.Map.of("success", false, "message", "You can only view your own private videos"));
+        }
         Pageable pageable = PageRequest.of(page, size);
         Page<Video> videos = videoRepository.findByUserIdAndIsPublicOrderByCreatedAtDesc(userId, false, pageable);
         Page<VideoDTO> videoDTOs = videos.map(this::convertToDTO);
@@ -359,23 +381,29 @@ public class VideoController {
     @GetMapping("/user/{userId}/liked")
     @Operation(summary = "Get user's liked videos", description = "Get all videos liked by a specific user (requires authentication)")
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<Page<VideoDTO>> getUserLikedVideos(
+    public ResponseEntity<?> getUserLikedVideos(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             HttpServletRequest request) {
-        
-        // Check authentication and verify user can access liked videos
+        // Check authentication
         Optional<User> currentUser = authUtil.getCurrentUser(request);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        
-        // Users can only see their own liked videos
-        if (!currentUser.get().getId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        // Fetch the target user
+        Optional<User> targetUserOpt = userRepository.findById(userId);
+        if (targetUserOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
-        
+        User targetUser = targetUserOpt.get();
+        Long currentUserId = currentUser.get().getId();
+
+        // If the account is private and not the owner, forbid access
+        if (targetUser.isPrivateAccount() && !currentUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(java.util.Map.of("success", false, "message", "This account is private."));
+        }
         Pageable pageable = PageRequest.of(page, size);
         Page<Video> videos = videoRepository.findLikedVideosByUserId(userId, pageable);
         Page<VideoDTO> videoDTOs = videos.map(this::convertToDTO);
@@ -426,7 +454,7 @@ public class VideoController {
             likeRepository.save(newLike);
             video.setLikesCount(video.getLikesCount() + 1);
             videoRepository.save(video);
-            
+
             return ResponseEntity.ok(new java.util.HashMap<String, Object>() {{
                 put("success", true);
                 put("message", "Video liked successfully");
@@ -725,6 +753,29 @@ public class VideoController {
         }
     }
 
+    @PostMapping("/{id}/share")
+    @Operation(summary = "Share video", description = "Increment the share count for a video (requires authentication)")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> shareVideo(@PathVariable Long id, HttpServletRequest request) {
+        Optional<User> currentUserOpt = authUtil.getCurrentUser(request);
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(java.util.Map.of("success", false, "message", "Authentication required"));
+        }
+        Optional<Video> videoOpt = videoRepository.findById(id);
+        if (videoOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(java.util.Map.of("success", false, "message", "Video not found"));
+        }
+        Video video = videoOpt.get();
+        video.setSharesCount(video.getSharesCount() + 1);
+        videoRepository.save(video);
+        return ResponseEntity.ok(java.util.Map.of(
+            "success", true,
+            "sharesCount", video.getSharesCount()
+        ));
+    }
+
     private VideoDTO convertToDTO(Video video) {
         UserDTO userDTO = new UserDTO(
             video.getUser().getId(),
@@ -735,7 +786,8 @@ public class VideoController {
             video.getUser().getBio(),
             video.getUser().getFollowersCount(),
             video.getUser().getFollowingCount(),
-            video.getUser().getCreatedAt()
+            video.getUser().getCreatedAt(),
+            video.getUser().isPrivateAccount()
         );
 
         return new VideoDTO(
@@ -764,7 +816,8 @@ public class VideoController {
             comment.getUser().getBio(),
             comment.getUser().getFollowersCount(),
             comment.getUser().getFollowingCount(),
-            comment.getUser().getCreatedAt()
+            comment.getUser().getCreatedAt(),
+            comment.getUser().isPrivateAccount()
         );
 
         // Check if current user has liked this comment

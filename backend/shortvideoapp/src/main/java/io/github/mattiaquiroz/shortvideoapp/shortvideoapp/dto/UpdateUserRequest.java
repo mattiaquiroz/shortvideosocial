@@ -13,15 +13,17 @@ public class UpdateUserRequest {
     private String fullName;
     private String bio;
     private String profilePictureUrl;
+    private Boolean privateAccount;
 
     public UpdateUserRequest() {}
 
-    public UpdateUserRequest(String username, String email, String fullName, String bio, String profilePictureUrl) {
+    public UpdateUserRequest(String username, String email, String fullName, String bio, String profilePictureUrl, Boolean privateAccount) {
         this.username = username;
         this.email = email;
         this.fullName = fullName;
         this.bio = bio;
         this.profilePictureUrl = profilePictureUrl;
+        this.privateAccount = privateAccount;
     }
 
     public String getUsername() { return username; }
@@ -38,4 +40,7 @@ public class UpdateUserRequest {
 
     public String getProfilePictureUrl() { return profilePictureUrl; }
     public void setProfilePictureUrl(String profilePictureUrl) { this.profilePictureUrl = profilePictureUrl; }
+
+    public Boolean getPrivateAccount() { return privateAccount; }
+    public void setPrivateAccount(Boolean privateAccount) { this.privateAccount = privateAccount; }
 } 

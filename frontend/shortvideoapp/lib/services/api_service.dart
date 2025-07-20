@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shortvideoapp/services/storage_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
 import 'package:shortvideoapp/models/public_user_model.dart';
+import 'package:shortvideoapp/models/message_model.dart';
+import 'package:shortvideoapp/models/conversation_model.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 
@@ -124,13 +126,14 @@ class ApiService {
         final updatedUser = User(
           id: publicUserData['id'],
           username: publicUserData['username'],
-          email: currentUser.email, // Keep email from local storage
+          email: publicUserData['email'], // Use backend value
           fullName: publicUserData['fullName'],
           profilePictureUrl: publicUserData['profilePictureUrl'],
           bio: publicUserData['bio'],
           followersCount: publicUserData['followersCount'] ?? 0,
           followingCount: publicUserData['followingCount'] ?? 0,
           createdAt: DateTime.parse(publicUserData['createdAt']),
+          isPrivateAccount: publicUserData['privateAccount'] ?? false,
         );
 
         // Update local storage with fresh data
@@ -277,14 +280,16 @@ class ApiService {
           },
         );
 
+        // Decode response body as UTF-8 to make accents work
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
         if (response.statusCode == 200) {
-          // Decode response body as UTF-8 to make accents work
-          final String utf8Body = utf8.decode(response.bodyBytes);
-
-          final data = jsonDecode(utf8Body);
           return {'success': true, 'data': data};
         } else {
-          return {'success': false, 'message': 'Failed to load videos'};
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Failed to load videos'
+          };
         }
       }
       return {'success': false, 'message': 'Token not found'};
@@ -311,12 +316,14 @@ class ApiService {
             'Authorization': 'Bearer $token',
           },
         );
-
+        final data = jsonDecode(response.body);
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
           return {'success': true, 'data': data};
         } else {
-          return {'success': false, 'message': 'Failed to load videos'};
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Failed to load videos'
+          };
         }
       }
       return {'success': false, 'message': 'Token not found'};
@@ -343,11 +350,15 @@ class ApiService {
           },
         );
 
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
           return {'success': true, 'data': data};
         } else {
-          return {'success': false, 'message': 'Failed to load videos'};
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Failed to load videos'
+          };
         }
       }
       return {'success': false, 'message': 'Token not found'};
@@ -713,8 +724,11 @@ class ApiService {
   Future<Map<String, dynamic>> updateUserProfile({
     required int userId,
     String? username,
+    String? email,
     String? bio,
     String? profilePictureUrl,
+    bool? isPrivateAccount,
+    String? fullName,
   }) async {
     try {
       final token = await _storageService.getToken();
@@ -724,9 +738,12 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/users/$userId');
       final Map<String, dynamic> body = {};
       if (username != null) body['username'] = username;
+      if (email != null) body['email'] = email;
       if (bio != null) body['bio'] = bio;
       if (profilePictureUrl != null)
         body['profilePictureUrl'] = profilePictureUrl;
+      if (isPrivateAccount != null) body['privateAccount'] = isPrivateAccount;
+      if (fullName != null) body['fullName'] = fullName;
       final response = await http.patch(
         uri,
         headers: {
@@ -821,7 +838,6 @@ class ApiService {
     bool isPublic, {
     void Function(double)? onProgress,
   }) async {
-    print('uploadVideoWithThumbnail called (dio)');
     try {
       final token = await StorageService().getToken();
       final dio = Dio();
@@ -848,9 +864,7 @@ class ApiService {
           }
         },
       );
-      print('Dio response: ${response.statusCode} - ${response.data}');
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Upload successful');
         return true;
       } else {
         print('Upload failed: ${response.statusCode} - ${response.data}');
@@ -859,6 +873,415 @@ class ApiService {
     } catch (e) {
       print('Exception in uploadVideoWithThumbnail (dio): ${e.toString()}');
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      final data = jsonDecode(response.body);
+      return data;
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Search videos
+  Future<List<Map<String, dynamic>>> searchVideos(String query) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return [];
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/videos/search?query=$query'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Decode response body as UTF-8 to make accents work
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
+        final content = data['content'] as List<dynamic>?;
+        if (content != null) {
+          return content
+              .map((video) => Map<String, dynamic>.from(video))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Search videos error: $e');
+      return [];
+    }
+  }
+
+  // Search users
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return [];
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/search?query=$query'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Decode response body as UTF-8 to make accents work
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
+        if (data is List) {
+          return data.map((user) => Map<String, dynamic>.from(user)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Search users error: $e');
+      return [];
+    }
+  }
+
+  // Get all users for messaging
+  Future<List<Map<String, dynamic>>> getAllUsersForMessaging() async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return [];
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/all'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Decode response body as UTF-8 to make accents work
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
+        if (data is List) {
+          return data.map((user) => Map<String, dynamic>.from(user)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Get all users error: $e');
+      return [];
+    }
+  }
+
+  // MARK: - Message Methods
+
+  // Send a message
+  Future<Map<String, dynamic>> sendMessage({
+    required int receiverId,
+    required String content,
+    int? replyToId,
+    String? reaction,
+    String? messageType,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final requestBody = {
+        'receiverId': receiverId,
+        'content': content,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (reaction != null) 'reaction': reaction,
+        if (messageType != null) 'messageType': messageType,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': Message.fromJson(data),
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to send message',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get conversations
+  Future<Map<String, dynamic>> getConversations() async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/messages/conversations'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final conversations =
+            (data as List).map((json) => Conversation.fromJson(json)).toList();
+        return {
+          'success': true,
+          'conversations': conversations,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to load conversations',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get conversation with user
+  Future<Map<String, dynamic>> getConversationWithUser(int userId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/messages/conversation/$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final messages =
+            (data as List).map((json) => Message.fromJson(json)).toList();
+        return {
+          'success': true,
+          'messages': messages,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to load conversation',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Get unread count
+  Future<Map<String, dynamic>> getUnreadCount() async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/messages/unread-count'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'unreadCount': data['unreadCount'] ?? 0,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get unread count',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Add reaction to message
+  Future<Map<String, dynamic>> addReactionToMessage({
+    required int messageId,
+    required String reaction,
+  }) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/messages/$messageId/reaction?reaction=$reaction'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': Message.fromJson(data),
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to add reaction',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Delete message
+  Future<Map<String, dynamic>> deleteMessage(int messageId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/messages/$messageId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 204) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to delete message',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Mark conversation as read
+  Future<Map<String, dynamic>> markConversationAsRead(int userId) async {
+    try {
+      final token = await _storageService.getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token not found'};
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/messages/conversation/$userId/mark-read'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true};
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to mark conversation as read',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  // Increment video share count
+  Future<void> incrementVideoShareCount(dynamic videoId) async {
+    final token = await _storageService.getToken();
+    if (token == null) throw Exception('Token not found');
+    final response = await http.post(
+      Uri.parse('$baseUrl/videos/$videoId/share'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to increment share count');
+    }
+  }
+
+  // Get video by ID
+  Future<Map<String, dynamic>> getVideoById(String videoId) async {
+    final token = await _storageService.getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Token not found'};
+    }
+    final response = await http.get(
+      Uri.parse('$baseUrl/videos/$videoId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {'success': true, 'video': data};
+    } else {
+      return {'success': false, 'message': 'Failed to fetch video'};
     }
   }
 }

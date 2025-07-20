@@ -141,8 +141,6 @@ class EnhancedVideoService {
 
         // Preload some content
         await controller.seekTo(Duration.zero);
-
-        print('Preloaded video: $videoId for context: $context');
       } catch (e) {
         print('Error preloading video $videoId: $e');
         _controllers.remove(videoId);

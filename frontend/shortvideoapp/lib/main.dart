@@ -5,6 +5,8 @@ import 'services/storage_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main/create.dart';
 import 'screens/main/profile.dart';
+import 'screens/main/search.dart';
+import 'screens/main/messages.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,7 +109,9 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     // Initialize screens list here where _homePageKey is available
     _screens = [
       HomePage(key: _homePageKey),
+      const SearchScreen(),
       const CreateVideoPage(),
+      const MessagesScreen(),
       const ProfilePage(userId: -1, username: '', isPublicUser: false)
     ];
   }
@@ -177,13 +181,28 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                   isActive: _currentIndex == 0,
                   onTap: () => _onItemTapped(0),
                 ),
-                _buildCreateButton(),
                 _buildNavItem(
                   icon:
-                      _currentIndex == 2 ? Icons.person : Icons.person_outlined,
+                      _currentIndex == 1 ? Icons.search : Icons.search_outlined,
+                  label: 'Search',
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onItemTapped(1),
+                ),
+                _buildCreateButton(),
+                _buildNavItem(
+                  icon: _currentIndex == 3
+                      ? Icons.chat_bubble
+                      : Icons.chat_bubble_outlined,
+                  label: 'Messages',
+                  isActive: _currentIndex == 3,
+                  onTap: () => _onItemTapped(3),
+                ),
+                _buildNavItem(
+                  icon:
+                      _currentIndex == 4 ? Icons.person : Icons.person_outlined,
                   label: 'Profile',
-                  isActive: _currentIndex == 2,
-                  onTap: () => _onItemTapped(2),
+                  isActive: _currentIndex == 4,
+                  onTap: () => _onItemTapped(4),
                 ),
               ],
             ),
@@ -243,13 +262,13 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
 
   Widget _buildCreateButton() {
     return GestureDetector(
-      onTap: () => _onItemTapped(1),
+      onTap: () => _onItemTapped(2),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 52,
         width: 52,
         decoration: BoxDecoration(
-          gradient: _currentIndex == 1
+          gradient: _currentIndex == 2
               ? LinearGradient(
                   colors: [Colors.red[400]!, Colors.red[600]!],
                   begin: Alignment.topLeft,
@@ -271,7 +290,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
         ),
         child: AnimatedScale(
           duration: const Duration(milliseconds: 200),
-          scale: _currentIndex == 1 ? 1.1 : 1.0,
+          scale: _currentIndex == 2 ? 1.1 : 1.0,
           child: const Icon(Icons.add, color: Colors.white, size: 26),
         ),
       ),

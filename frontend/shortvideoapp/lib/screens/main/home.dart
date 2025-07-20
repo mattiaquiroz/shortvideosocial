@@ -5,6 +5,7 @@ import 'package:shortvideoapp/services/video_player_service.dart';
 import 'package:shortvideoapp/screens/main/comments_section.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:video_player/video_player.dart';
+import 'package:shortvideoapp/screens/main/share_to_chat_modal.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -587,6 +588,24 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                     Icons.share,
                     Colors.white,
                     widget.videoData['sharesCount']!,
+                    onTap: () async {
+                      final result = await showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) =>
+                            ShareToChatModal(video: widget.videoData),
+                      );
+                      if (result == true) {
+                        setState(() {
+                          final count = int.tryParse(
+                                  widget.videoData['sharesCount'] ?? '0') ??
+                              0;
+                          widget.videoData['sharesCount'] =
+                              (count + 1).toString();
+                        });
+                      }
+                    },
                   ),
                   const SizedBox(height: 24),
                   _buildProfileButton(),

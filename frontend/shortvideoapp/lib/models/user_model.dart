@@ -8,6 +8,7 @@ class User {
   final int followersCount;
   final int followingCount;
   final DateTime createdAt;
+  final bool isPrivateAccount;
 
   User({
     required this.id,
@@ -19,19 +20,21 @@ class User {
     required this.followersCount,
     required this.followingCount,
     required this.createdAt,
+    required this.isPrivateAccount,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
-      username: json['username'],
-      email: json['email'],
+      username: json['username'] ?? '',
+      email: json['email'] ?? '',
       fullName: json['fullName'],
       profilePictureUrl: json['profilePictureUrl'],
       bio: json['bio'],
       followersCount: json['followersCount'] ?? 0,
       followingCount: json['followingCount'] ?? 0,
       createdAt: DateTime.parse(json['createdAt']),
+      isPrivateAccount: json['privateAccount'] ?? false,
     );
   }
 
@@ -46,6 +49,7 @@ class User {
       'followersCount': followersCount,
       'followingCount': followingCount,
       'createdAt': createdAt.toIso8601String(),
+      'privateAccount': isPrivateAccount,
     };
   }
 
@@ -59,6 +63,7 @@ class User {
     int? followersCount,
     int? followingCount,
     DateTime? createdAt,
+    bool? isPrivateAccount,
   }) {
     return User(
       id: id ?? this.id,
@@ -70,6 +75,7 @@ class User {
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       createdAt: createdAt ?? this.createdAt,
+      isPrivateAccount: isPrivateAccount ?? this.isPrivateAccount,
     );
   }
 }

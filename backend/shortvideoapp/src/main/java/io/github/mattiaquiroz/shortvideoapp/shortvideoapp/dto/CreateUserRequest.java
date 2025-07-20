@@ -20,15 +20,17 @@ public class CreateUserRequest {
 
     private String fullName;
     private String bio;
+    private Boolean privateAccount;
 
     public CreateUserRequest() {}
 
-    public CreateUserRequest(String username, String email, String password, String fullName, String bio) {
+    public CreateUserRequest(String username, String email, String password, String fullName, String bio, Boolean privateAccount) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.fullName = fullName;
         this.bio = bio;
+        this.privateAccount = privateAccount;
     }
 
     public String getUsername() { return username; }
@@ -45,4 +47,7 @@ public class CreateUserRequest {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public Boolean getPrivateAccount() { return privateAccount; }
+    public void setPrivateAccount(Boolean privateAccount) { this.privateAccount = privateAccount; }
 } 

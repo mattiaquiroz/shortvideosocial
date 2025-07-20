@@ -123,6 +123,30 @@ class AppStrings {
   // Profile specific (Temporary)
   static const String userTotalLikes = "0";
 
+  static String get changePassword => LocalizationService.translate({
+        AppLanguage.english: "Change Password",
+        AppLanguage.italian: "Cambia password",
+        AppLanguage.french: "Changer le mot de passe",
+      });
+
+  static String get changePasswordDesc => LocalizationService.translate({
+        AppLanguage.english: "Change your account password",
+        AppLanguage.italian: "Cambia la password del tuo account",
+        AppLanguage.french: "Modifier le mot de passe de votre compte",
+      });
+
+  static String get currentPassword => LocalizationService.translate({
+        AppLanguage.english: "Current Password",
+        AppLanguage.italian: "Password attuale",
+        AppLanguage.french: "Mot de passe actuel",
+      });
+
+  static String get newPassword => LocalizationService.translate({
+        AppLanguage.english: "New Password",
+        AppLanguage.italian: "Nuova password",
+        AppLanguage.french: "Nouveau mot de passe",
+      });
+
   // Profile UI
   static String get followersLabel => LocalizationService.translate({
         AppLanguage.english: "Followers",
@@ -315,11 +339,18 @@ class AppStrings {
       });
 
   static String get privateAccountDesc => LocalizationService.translate({
-        AppLanguage.english: "Only people you approve can see your videos",
+        AppLanguage.english:
+            "Only approved followers can see your videos and profile.",
         AppLanguage.italian:
             "Solo le persone che approvi possono vedere i tuoi video",
         AppLanguage.french:
             "Seules les personnes que vous approuvez peuvent voir vos vidéos",
+      });
+
+  static String get accountIsPrivate => LocalizationService.translate({
+        AppLanguage.english: "This account is private.",
+        AppLanguage.italian: "Questo account è privato.",
+        AppLanguage.french: "Ce compte est privé.",
       });
 
   static String get accountActions => LocalizationService.translate({
@@ -680,5 +711,128 @@ class AppStrings {
         AppLanguage.english: "Failed to post comment",
         AppLanguage.italian: "Impossibile pubblicare il commento",
         AppLanguage.french: "Échec de la publication du commentaire",
+      });
+
+  static String get fullName => LocalizationService.translate({
+        AppLanguage.english: "Full Name",
+        AppLanguage.italian: "Nome completo",
+        AppLanguage.french: "Nom complet",
+      });
+
+  static String get addFullName => LocalizationService.translate({
+        AppLanguage.english: "Add name",
+        AppLanguage.italian: "Aggiungi nome",
+        AppLanguage.french: "Ajouter un nom",
+      });
+
+  // Search
+  static String get search => LocalizationService.translate({
+        AppLanguage.english: "Search",
+        AppLanguage.italian: "Cerca",
+        AppLanguage.french: "Rechercher",
+      });
+
+  static String get searchForVideosAndUsers => LocalizationService.translate({
+        AppLanguage.english: "Search for videos and users",
+        AppLanguage.italian: "Cerca video e utenti",
+        AppLanguage.french: "Rechercher des vidéos et des utilisateurs",
+      });
+
+  static String get searchDescription => LocalizationService.translate({
+        AppLanguage.english: "Find your favorite content and creators",
+        AppLanguage.italian: "Trova i tuoi contenuti e creatori preferiti",
+        AppLanguage.french: "Trouvez vos contenus et créateurs préférés",
+      });
+
+  static String get noVideosFound => LocalizationService.translate({
+        AppLanguage.english: "No videos found",
+        AppLanguage.italian: "Nessun video trovato",
+        AppLanguage.french: "Aucune vidéo trouvée",
+      });
+
+  static String get noUsersFound => LocalizationService.translate({
+        AppLanguage.english: "No users found",
+        AppLanguage.italian: "Nessun utente trovato",
+        AppLanguage.french: "Aucun utilisateur trouvé",
+      });
+
+  static String get videos => LocalizationService.translate({
+        AppLanguage.english: "Videos",
+        AppLanguage.italian: "Video",
+        AppLanguage.french: "Vidéos",
+      });
+
+  static String get users => LocalizationService.translate({
+        AppLanguage.english: "Users",
+        AppLanguage.italian: "Utenti",
+        AppLanguage.french: "Utilisateurs",
+      });
+
+  static String get followers => LocalizationService.translate({
+        AppLanguage.english: "followers",
+        AppLanguage.italian: "seguaci",
+        AppLanguage.french: "abonnés",
+      });
+
+  // Messages
+  static String get messages => LocalizationService.translate({
+        AppLanguage.english: "Messages",
+        AppLanguage.italian: "Messaggi",
+        AppLanguage.french: "Messages",
+      });
+
+  static String get noMessagesYet => LocalizationService.translate({
+        AppLanguage.english: "No messages yet",
+        AppLanguage.italian: "Nessun messaggio ancora",
+        AppLanguage.french: "Aucun message pour le moment",
+      });
+
+  static String get startConversation => LocalizationService.translate({
+        AppLanguage.english: "Start a conversation with someone",
+        AppLanguage.italian: "Inizia una conversazione con qualcuno",
+        AppLanguage.french: "Commencez une conversation avec quelqu'un",
+      });
+
+  static String get newMessage => LocalizationService.translate({
+        AppLanguage.english: "New Message",
+        AppLanguage.italian: "Nuovo Messaggio",
+        AppLanguage.french: "Nouveau Message",
+      });
+
+  static String get comingSoon => LocalizationService.translate({
+        AppLanguage.english: "Coming Soon",
+        AppLanguage.italian: "Prossimamente",
+        AppLanguage.french: "Bientôt disponible",
+      });
+
+  // Time-related strings
+  static String get now => LocalizationService.translate({
+        AppLanguage.english: "now",
+        AppLanguage.italian: "ora",
+        AppLanguage.french: "maintenant",
+      });
+
+  static String get ago => LocalizationService.translate({
+        AppLanguage.english: "ago",
+        AppLanguage.italian: "fa",
+        AppLanguage.french: "il y a",
+      });
+
+  static String get day => LocalizationService.translate({
+        AppLanguage.english: "d",
+        AppLanguage.italian: "g",
+        AppLanguage.french: "j",
+      });
+
+  static String get hour => LocalizationService.translate({
+        AppLanguage.english: "h",
+        AppLanguage.italian: "h",
+        AppLanguage.french: "h",
+      });
+
+  static String get minute => LocalizationService.translate({
+        AppLanguage.english: "m",
+        AppLanguage.italian: "m",
+        AppLanguage.french: "m",
       });
 }

@@ -51,6 +51,9 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "private_account", nullable = false)
+    private boolean privateAccount = false;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Video> videos;
 
@@ -62,6 +65,12 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<CommentLike> commentLikes;
+
+    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Message> sentMessages;
+
+    @OneToMany(mappedBy = "receiver", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Message> receivedMessages;
 
     @PrePersist
     protected void onCreate() {
@@ -76,11 +85,12 @@ public class User {
 
     public User() {}
 
-    public User(String username, String email, String password, String fullName) {
+    public User(String username, String email, String password, String fullName, boolean privateAccount) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.fullName = fullName;
+        this.privateAccount = privateAccount;
     }
 
     public Long getId() {
@@ -155,6 +165,9 @@ public class User {
         this.followingCount = followingCount;
     }
 
+    public boolean isPrivateAccount() { return privateAccount; }
+    public void setPrivateAccount(boolean privateAccount) { this.privateAccount = privateAccount; }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -201,5 +214,21 @@ public class User {
 
     public void setCommentLikes(List<CommentLike> commentLikes) {
         this.commentLikes = commentLikes;
+    }
+
+    public List<Message> getSentMessages() {
+        return sentMessages;
+    }
+
+    public void setSentMessages(List<Message> sentMessages) {
+        this.sentMessages = sentMessages;
+    }
+
+    public List<Message> getReceivedMessages() {
+        return receivedMessages;
+    }
+
+    public void setReceivedMessages(List<Message> receivedMessages) {
+        this.receivedMessages = receivedMessages;
     }
 } 

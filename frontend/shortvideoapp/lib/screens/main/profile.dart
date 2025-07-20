@@ -19,12 +19,10 @@ class Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppStrings.profile,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: ProfilePage(
-          userId: userId, username: username, isPublicUser: isPublicUser),
-      debugShowCheckedModeBanner: false,
+    return ProfilePage(
+      userId: userId,
+      username: username,
+      isPublicUser: isPublicUser,
     );
   }
 }
@@ -157,35 +155,57 @@ class _ProfilePageState extends State<ProfilePage> {
     final userId = currentUser!.id;
     Map<String, dynamic> response;
 
-    switch (tabIndex) {
-      case 0:
-        // Public videos
-        response = await _apiService.getUserPublicVideos(
-          userId: userId,
-          page: 0,
-          size: 50,
-        );
-        break;
-      case 1:
-        // Private videos
-        response = await _apiService.getUserPrivateVideos(
-          userId: userId,
-          page: 0,
-          size: 50,
-        );
-        break;
-      case 2:
-        // Liked videos
-        response = await _apiService.getUserLikedVideos(
-          userId: userId,
-          page: 0,
-          size: 50,
-        );
-        break;
-      default:
-        return [];
+    if (isOwnProfile) {
+      switch (tabIndex) {
+        case 0:
+          response = await _apiService.getUserPublicVideos(
+            userId: userId,
+            page: 0,
+            size: 50,
+          );
+          break;
+        case 1:
+          response = await _apiService.getUserPrivateVideos(
+            userId: userId,
+            page: 0,
+            size: 50,
+          );
+          break;
+        case 2:
+          response = await _apiService.getUserLikedVideos(
+            userId: userId,
+            page: 0,
+            size: 50,
+          );
+          break;
+        default:
+          return [];
+      }
+    } else {
+      switch (tabIndex) {
+        case 0:
+          response = await _apiService.getUserPublicVideos(
+            userId: userId,
+            page: 0,
+            size: 50,
+          );
+          break;
+        case 1:
+          response = await _apiService.getUserLikedVideos(
+            userId: userId,
+            page: 0,
+            size: 50,
+          );
+          break;
+        default:
+          return [];
+      }
     }
 
+    final message = (response['message'] ?? '').toString();
+    if (response['success'] == false && message == 'This account is private.') {
+      throw Exception('private_account');
+    }
     if (response['success'] && response['data'] != null) {
       final content = response['data']['content'] as List<dynamic>?;
       if (content != null) {
@@ -194,7 +214,6 @@ class _ProfilePageState extends State<ProfilePage> {
             .toList();
       }
     }
-
     return [];
   }
 
@@ -550,9 +569,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      currentUser?.fullName ??
-                                          currentUser?.username ??
-                                          "null",
+                                      currentUser?.username ?? "null",
                                       style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -602,7 +619,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   style: TextStyle(color: Colors.grey[700]),
                                 ),
                                 const SizedBox(height: 8),
-                                if (currentUser?.bio != null)
+                                if (currentUser?.bio != null &&
+                                    currentUser?.bio != "")
                                   Card(
                                     color: const Color.fromARGB(
                                         255, 248, 248, 248),
@@ -642,10 +660,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                           MainAxisAlignment.center,
                                       children: [
                                         _buildTabIcon(Icons.grid_on, 0),
+                                        if (isOwnProfile) ...[
+                                          const SizedBox(width: 50),
+                                          _buildTabIcon(Icons.lock, 1),
+                                        ],
                                         const SizedBox(width: 50),
-                                        _buildTabIcon(Icons.lock, 1),
-                                        const SizedBox(width: 50),
-                                        _buildTabIcon(Icons.favorite, 2),
+                                        _buildTabIcon(Icons.favorite,
+                                            isOwnProfile ? 2 : 1),
                                       ],
                                     ),
                                   ],
@@ -668,8 +689,17 @@ class _ProfilePageState extends State<ProfilePage> {
                               hasScrollBody: false,
                               child: Center(
                                 child: Text(
-                                  'Error loading videos: ${snapshot.error.toString()}',
-                                  style: const TextStyle(color: Colors.red),
+                                  snapshot.error.toString() ==
+                                          'Exception: private_account'
+                                      ? AppStrings.accountIsPrivate
+                                      : 'Error loading videos: ${snapshot.error.toString()}',
+                                  style: TextStyle(
+                                    color: snapshot.error.toString() ==
+                                            'Exception: private_account'
+                                        ? Colors.grey
+                                        : Colors.red,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
                             )

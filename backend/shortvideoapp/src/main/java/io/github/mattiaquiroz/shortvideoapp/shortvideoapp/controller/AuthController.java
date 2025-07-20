@@ -14,7 +14,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
+import jakarta.servlet.http.HttpServletRequest;
+import io.github.mattiaquiroz.shortvideoapp.shortvideoapp.util.AuthUtil;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,6 +32,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private AuthUtil authUtil;
 
     @PostMapping("/register")
     @Operation(summary = "Register new user", description = "Create a new user account")
@@ -60,11 +66,15 @@ public class AuthController {
 
             User savedUser = userRepository.save(user);
 
+            // Generate JWT token for the new user
+            String token = jwtUtil.generateToken(savedUser.getUsername(), savedUser.getId());
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(jwtUtil.getExpirationTime() / 1000);
+
             // Convert to DTO (without password)
             UserDTO userDTO = convertToDTO(savedUser);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new AuthResponse(true, "User registered successfully", userDTO));
+                .body(new AuthResponse(true, "User registered successfully", userDTO, token, expiresAt));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -112,17 +122,16 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @Operation(summary = "Change password", description = "Change user password")
-    public ResponseEntity<AuthResponse> changePassword(@RequestParam Long userId, 
-                                                      @RequestParam String currentPassword,
-                                                      @RequestParam String newPassword) {
+    public ResponseEntity<AuthResponse> changePassword(@RequestBody Map<String, String> payload, HttpServletRequest request) {
         try {
-            Optional<User> userOptional = userRepository.findById(userId);
-            if (userOptional.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AuthResponse(false, "User not found"));
+            String currentPassword = payload.get("currentPassword");
+            String newPassword = payload.get("newPassword");
+            var userOpt = authUtil.getCurrentUser(request);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(false, "Authentication required"));
             }
-
-            User user = userOptional.get();
+            User user = userOpt.get();
 
             // Verify current password
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
@@ -197,7 +206,8 @@ public class AuthController {
             user.getBio(),
             user.getFollowersCount(),
             user.getFollowingCount(),
-            user.getCreatedAt()
+            user.getCreatedAt(),
+            user.isPrivateAccount()
         );
     }
 } 
