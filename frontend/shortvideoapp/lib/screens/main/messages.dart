@@ -20,11 +20,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<Conversation> _conversations = [];
   bool _isLoading = true;
   String? _errorMessage;
+  Map<String, String>? _imageHeaders;
 
   @override
   void initState() {
     super.initState();
     _loadConversations();
+    _loadImageHeaders();
 
     // Listen for app lifecycle changes to refresh when app becomes active
     SystemChannels.lifecycle.setMessageHandler((msg) async {
@@ -33,6 +35,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
       return null;
     });
+  }
+
+  Future<void> _loadImageHeaders() async {
+    try {
+      _imageHeaders = await _apiService.getImageHeaders();
+    } catch (e) {
+      // Handle error silently, will use empty headers
+      _imageHeaders = {};
+    }
   }
 
   Future<void> _loadConversations() async {
@@ -77,18 +88,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const NewMessageScreen(),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -213,6 +212,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Widget _buildConversationsList() {
     return RefreshIndicator(
+      color: Colors.red,
+      backgroundColor: Colors.white,
       onRefresh: _loadConversations,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
@@ -229,6 +230,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () async {
@@ -281,51 +283,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         );
                       }
 
-                      return FutureBuilder<Map<String, String>>(
-                        future: _apiService.getImageHeaders(),
-                        builder: (context, headersSnapshot) {
-                          return CircleAvatar(
-                            radius: 25,
-                            backgroundColor: Colors.grey[300],
-                            child: ClipOval(
-                              child: Image.network(
-                                snapshot.data!,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                                headers: headersSnapshot.data ?? {},
-                                errorBuilder: (context, error, stackTrace) {
-                                  return CircleAvatar(
-                                    radius: 25,
-                                    backgroundColor: Colors.grey[300],
-                                    child: Text(
-                                      (conversation.otherUser.username)[0]
-                                          .toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    return child;
-                                  }
-                                  return CircleAvatar(
-                                    radius: 25,
-                                    backgroundColor: Colors.grey[300],
-                                    child: const CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.blue),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
+                      return CircleAvatar(
+                        radius: 25,
+                        backgroundColor: Colors.grey[300],
+                        child: ClipOval(
+                          child: Image.network(
+                            snapshot.data!,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            headers: _imageHeaders ?? {},
+                            errorBuilder: (context, error, stackTrace) {
+                              return CircleAvatar(
+                                radius: 25,
+                                backgroundColor: Colors.grey[300],
+                                child: Text(
+                                  (conversation.otherUser.username)[0]
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                return child;
+                              }
+                              return CircleAvatar(
+                                radius: 25,
+                                backgroundColor: Colors.grey[300],
+                                child: const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.blue),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       );
                     },
                   ),

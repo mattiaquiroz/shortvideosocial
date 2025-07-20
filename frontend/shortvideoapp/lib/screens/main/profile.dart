@@ -478,6 +478,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   builder: (context, snapshot) {
                     final videos = snapshot.data ?? [];
                     return RefreshIndicator(
+                      color: Colors.red,
                       backgroundColor: Colors.white,
                       onRefresh: _loadUserProfile,
                       child: CustomScrollView(

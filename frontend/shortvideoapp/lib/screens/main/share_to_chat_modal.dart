@@ -58,7 +58,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
     });
     try {
       final videoId = widget.video['id'];
-      final result = await _apiService.sendMessage(
+      await _apiService.sendMessage(
         receiverId: _selectedUserId!,
         content: '[videoid:$videoId]',
         messageType: 'video',
@@ -98,7 +98,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
           children: [
             Row(
               children: [
-                const Icon(Icons.share, color: Colors.blue),
+                const Icon(Icons.share, color: Colors.red),
                 const SizedBox(width: 8),
                 const Text(
                   'Share to chat',
@@ -153,7 +153,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
                                     return CircleAvatar(
                                       radius: isSelected ? 32 : 28,
                                       backgroundColor: isSelected
-                                          ? Colors.blue[100]
+                                          ? Colors.red[100]
                                           : Colors.grey[200],
                                       child: const CircularProgressIndicator(
                                           strokeWidth: 2),
@@ -165,7 +165,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
                                     return CircleAvatar(
                                       radius: isSelected ? 32 : 28,
                                       backgroundColor: isSelected
-                                          ? Colors.blue[100]
+                                          ? Colors.red[100]
                                           : Colors.grey[200],
                                       child: Text(
                                         user.username.isNotEmpty
@@ -183,7 +183,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
                                       return CircleAvatar(
                                         radius: isSelected ? 32 : 28,
                                         backgroundColor: isSelected
-                                            ? Colors.blue[100]
+                                            ? Colors.red[100]
                                             : Colors.grey[200],
                                         child: ClipOval(
                                           child: Image.network(
@@ -233,7 +233,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
                                         ? FontWeight.bold
                                         : FontWeight.normal,
                                     color:
-                                        isSelected ? Colors.blue : Colors.black,
+                                        isSelected ? Colors.red : Colors.black,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -261,7 +261,7 @@ class _ShareToChatModalState extends State<ShareToChatModal> {
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Send'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 14),

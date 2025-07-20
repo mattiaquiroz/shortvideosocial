@@ -209,20 +209,21 @@ class _ChatScreenState extends State<ChatScreen> {
     final currentUser = await _apiService.getCurrentUser();
     if (currentUser == null) return;
 
+    final optimisticMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
+      content: content,
+      sender: currentUser,
+      receiver: widget.otherUser,
+      replyTo: _replyToMessage,
+      reaction: null,
+      isRead: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
     setState(() {
       // Optimistically add message to UI
-      final newMessage = Message(
-        id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
-        content: content,
-        sender: currentUser,
-        receiver: widget.otherUser,
-        replyTo: _replyToMessage,
-        reaction: null,
-        isRead: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      _messages.add(newMessage);
+      _messages.add(optimisticMessage);
     });
 
     _messageController.clear();
@@ -239,10 +240,20 @@ class _ChatScreenState extends State<ChatScreen> {
       // Clear reply after successful API call
       _clearReplyTo();
 
-      if (!result['success']) {
+      if (result['success']) {
+        // Update the optimistic message with the real message from server
+        final realMessage = result['message'] as Message;
+        setState(() {
+          // Replace the optimistic message with the real one
+          final index = _messages.indexOf(optimisticMessage);
+          if (index != -1) {
+            _messages[index] = realMessage;
+          }
+        });
+      } else {
         // Remove the optimistic message and show error
         setState(() {
-          _messages.removeLast();
+          _messages.remove(optimisticMessage);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -254,7 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       // Remove the optimistic message and show error
       setState(() {
-        _messages.removeLast();
+        _messages.remove(optimisticMessage);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -812,33 +823,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ] else ...[
                       // Reply preview
                       if (message.replyTo != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: isMyMessage
-                                ? Colors.white.withOpacity(0.2)
-                                : Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isMyMessage
-                                  ? Colors.white.withOpacity(0.3)
-                                  : Colors.grey.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            message.replyTo!.content,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isMyMessage
-                                  ? Colors.white.withOpacity(0.9)
-                                  : Colors.grey[700],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        _buildReplyPreview(message.replyTo!, isMyMessage),
                       ],
                       // Message content
                       Text(
@@ -897,148 +882,153 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[200]!),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+    return SafeArea(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: Colors.grey[200]!),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Reply preview
-          if (_replyToMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF007AFF).withOpacity(0.1),
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Reply preview
+            if (_replyToMessage != null) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF007AFF).withOpacity(0.1),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey[200]!),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF007AFF),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Replying to ${_replyToMessage!.sender.username}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF007AFF),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _replyToMessage!.content,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _clearReplyTo,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ],
+            // Message input
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
-                    width: 3,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF007AFF),
-                      borderRadius: BorderRadius.circular(2),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.grey[200]!,
+                          width: 1,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: _replyToMessage != null
+                              ? 'Reply to ${_replyToMessage!.sender.username}...'
+                              : 'Type a message...',
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          hintStyle: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 16,
+                          ),
+                        ),
+                        maxLines: 4,
+                        minLines: 1,
+                        textCapitalization: TextCapitalization.sentences,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Replying to ${_replyToMessage!.sender.username}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF007AFF),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _replyToMessage!.content,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF007AFF),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFF007AFF),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                          spreadRadius: 0,
                         ),
                       ],
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: _clearReplyTo,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
+                      onPressed: _sendMessage,
+                      iconSize: 20,
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          // Message input
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.grey[200]!,
-                        width: 1,
-                      ),
-                    ),
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: _replyToMessage != null
-                            ? 'Reply to ${_replyToMessage!.sender.username}...'
-                            : 'Type a message...',
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 14,
-                        ),
-                        hintStyle: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 16,
-                        ),
-                      ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF007AFF),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xFF007AFF),
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                    iconSize: 20,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1080,6 +1070,56 @@ class _ChatScreenState extends State<ChatScreen> {
       return '${difference.inHours}h ago';
     } else {
       return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    }
+  }
+
+  String? _extractVideoId(String content) {
+    final reg = RegExp(r'^\[videoid:(\d+)\]');
+    final match = reg.firstMatch(content.trim());
+    return match?.group(1);
+  }
+
+  Widget _buildReplyPreview(Message replyToMessage, bool isMyMessage) {
+    // Check if the replied message is a video
+    final videoId = _extractVideoId(replyToMessage.content);
+
+    if (videoId != null) {
+      // Show video preview for replied video
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: _ReplyVideoPreviewCard(
+          videoId: videoId,
+          isMyMessage: isMyMessage,
+        ),
+      );
+    } else {
+      // Show text preview for regular messages
+      return Container(
+        padding: const EdgeInsets.all(10),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: isMyMessage
+              ? Colors.white.withOpacity(0.2)
+              : Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isMyMessage
+                ? Colors.white.withOpacity(0.3)
+                : Colors.grey.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          replyToMessage.content,
+          style: TextStyle(
+            fontSize: 13,
+            color:
+                isMyMessage ? Colors.white.withOpacity(0.9) : Colors.grey[700],
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
     }
   }
 }
@@ -1171,6 +1211,152 @@ class _VideoPreviewCard extends StatelessWidget {
                   ),
                   child: const Icon(Icons.play_arrow,
                       color: Colors.white, size: 32),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ReplyVideoPreviewCard extends StatelessWidget {
+  final String videoId;
+  final bool isMyMessage;
+
+  const _ReplyVideoPreviewCard({
+    super.key,
+    required this.videoId,
+    required this.isMyMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final apiService = ApiService();
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        apiService.getThumbnailUrl(videoId),
+        apiService.getImageHeaders(),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            width: 60,
+            height: 80,
+            decoration: BoxDecoration(
+              color: isMyMessage
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isMyMessage
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Container(
+            width: 60,
+            height: 80,
+            decoration: BoxDecoration(
+              color: isMyMessage
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isMyMessage
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.videocam,
+              size: 20,
+              color: isMyMessage
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.grey[600],
+            ),
+          );
+        }
+
+        final thumbnailUrl = snapshot.data![0] as String? ?? '';
+        final headers = snapshot.data![1] as Map<String, String>? ?? {};
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                    SingleVideoPlayerScreen(videoData: {'id': videoId}),
+              ),
+            );
+          },
+          child: Container(
+            width: 60,
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isMyMessage
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    thumbnailUrl,
+                    width: 60,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    headers: headers,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 60,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: isMyMessage
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.videocam,
+                        size: 20,
+                        color: isMyMessage
+                            ? Colors.white.withOpacity(0.7)
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ],
             ),

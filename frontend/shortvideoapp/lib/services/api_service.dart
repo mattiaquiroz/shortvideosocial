@@ -1032,7 +1032,9 @@ class ApiService {
         body: jsonEncode(requestBody),
       );
 
-      final data = jsonDecode(response.body);
+      final String utf8Body = utf8.decode(response.bodyBytes);
+
+      final data = jsonDecode(utf8Body);
 
       if (response.statusCode == 201) {
         return {
@@ -1067,7 +1069,8 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
         final conversations =
             (data as List).map((json) => Conversation.fromJson(json)).toList();
         return {
@@ -1102,7 +1105,8 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final String utf8Body = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(utf8Body);
         final messages =
             (data as List).map((json) => Message.fromJson(json)).toList();
         return {

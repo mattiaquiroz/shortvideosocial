@@ -710,7 +710,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<String> _getUserProfileImageUrl(Map<String, dynamic>? user) async {
-    final userId = user['id']?.toString() ?? '';
+    final userId = user?['id']?.toString() ?? '';
 
     try {
       return await _apiService.getProfileImageUrl(null, userId: userId);
