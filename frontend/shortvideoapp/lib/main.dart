@@ -7,6 +7,7 @@ import 'screens/main/create.dart';
 import 'screens/main/profile.dart';
 import 'screens/main/search.dart';
 import 'screens/main/messages.dart';
+import 'package:shortvideoapp/services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,6 +94,9 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   // Declare screens list but initialize in initState
   late List<Widget> _screens;
 
+  int unreadCount = 0;
+  final ApiService _apiService = ApiService();
+
   @override
   void initState() {
     super.initState();
@@ -111,9 +115,19 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
       HomePage(key: _homePageKey),
       const SearchScreen(),
       const CreateVideoPage(),
-      const MessagesScreen(),
+      MessagesScreen(onConversationsRead: _loadUnreadCount),
       const ProfilePage(userId: -1, username: '', isPublicUser: false)
     ];
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final result = await _apiService.getUnreadCount();
+    if (result['success'] == true) {
+      setState(() {
+        unreadCount = result['unreadCount'] ?? 0;
+      });
+    }
   }
 
   @override
@@ -139,6 +153,13 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     }
 
     _pageController.jumpToPage(index);
+
+    // If navigating to messages, refresh unread count after returning
+    if (index == 3) {
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        await _loadUnreadCount();
+      });
+    }
   }
 
   @override
@@ -218,6 +239,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    final isMessages = label.toLowerCase() == 'messages';
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -231,28 +253,60 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  icon,
-                  color: isActive ? const Color(0xFFFF4444) : Colors.grey[400],
-                  size: isActive ? 26 : 22,
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      icon,
+                      color:
+                          isActive ? const Color(0xFFFF4444) : Colors.grey[400],
+                      size: isActive ? 26 : 22,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      color:
+                          isActive ? const Color(0xFFFF4444) : Colors.grey[400],
+                      fontSize: isActive ? 11 : 9,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    child: Text(label),
+                  ),
+                ],
               ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  color: isActive ? const Color(0xFFFF4444) : Colors.grey[400],
-                  fontSize: isActive ? 11 : 9,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              if (isMessages && unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: -7,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-                child: Text(label),
-              ),
             ],
           ),
         ),

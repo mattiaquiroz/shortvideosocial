@@ -170,7 +170,7 @@ class _CreateVideoPageState extends State<CreateVideoPage> {
                                       });
                                     },
                                     child: Container(
-                                      decoration: BoxDecoration(
+                                      decoration: const BoxDecoration(
                                         color: Colors.black54,
                                         shape: BoxShape.circle,
                                       ),

@@ -531,7 +531,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       backgroundColor: Colors.grey[300],
                                       child: ClipOval(
                                         child: Image.network(
-                                          imageUrl!,
+                                          imageUrl,
                                           width: 120,
                                           height: 120,
                                           fit: BoxFit.cover,

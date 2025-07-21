@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/models/conversation_model.dart';
-import 'package:shortvideoapp/models/user_model.dart';
 
 class ShareToChatModal extends StatefulWidget {
   final Map<String, dynamic> video;

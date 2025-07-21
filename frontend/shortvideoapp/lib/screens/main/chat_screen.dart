@@ -96,19 +96,19 @@ class _SwipeableMessageState extends State<_SwipeableMessage> {
                   color: const Color(0xFF007AFF).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Center(
+                child: const Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.reply,
-                        color: const Color(0xFF007AFF),
+                        color: Color(0xFF007AFF),
                         size: 18,
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Text(
                         'Reply',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Color(0xFF007AFF),
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -148,12 +148,27 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _errorMessage;
   Message? _replyToMessage;
   User? _currentUser;
+  int _currentPage = 0;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  final int _pageSize = 15;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
     _loadMessages();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() async {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 100 &&
+        _hasMore &&
+        !_isLoadingMore &&
+        !_isLoading) {
+      await _loadMessages(page: _currentPage + 1, append: true);
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -170,34 +185,57 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadMessages({int page = 0, bool append = false}) async {
+    if (_isLoadingMore) return;
+    if (page == 0) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
 
     try {
-      final result =
-          await _apiService.getConversationWithUser(widget.otherUser.id);
+      final result = await _apiService.getConversationWithUser(
+          widget.otherUser.id,
+          page: page,
+          size: _pageSize);
       if (result['success']) {
         setState(() {
-          _messages = result['messages'];
+          if (append) {
+            _messages.addAll(result['messages']);
+          } else {
+            _messages = result['messages'];
+          }
+          _hasMore = result['hasMore'] ?? false;
+          _currentPage = result['page'] ?? page;
           _isLoading = false;
+          _isLoadingMore = false;
         });
-        _scrollToBottom();
-
-        // Mark conversation as read
-        await _apiService.markConversationAsRead(widget.otherUser.id);
+        // Only jump to bottom on initial load (not after loading more)
+        if (!append && _messages.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(0.0);
+            }
+          });
+        }
+        // Do NOT call _scrollToBottom after loading more
       } else {
         setState(() {
           _errorMessage = result['message'];
           _isLoading = false;
+          _isLoadingMore = false;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load messages: $e';
         _isLoading = false;
+        _isLoadingMore = false;
       });
     }
   }
@@ -222,12 +260,17 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     setState(() {
-      // Optimistically add message to UI
-      _messages.add(optimisticMessage);
+      // Optimistically add message to UI at the start (for reverse: true)
+      _messages.insert(0, optimisticMessage);
     });
 
     _messageController.clear();
-    _scrollToBottom();
+    // Only scroll to bottom after sending a message
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0.0);
+      }
+    });
 
     try {
       final result = await _apiService.sendMessage(
@@ -244,7 +287,7 @@ class _ChatScreenState extends State<ChatScreen> {
         // Update the optimistic message with the real message from server
         final realMessage = result['message'] as Message;
         setState(() {
-          // Replace the optimistic message with the real one
+          // Replace the optimistic message with the real one at the start
           final index = _messages.indexOf(optimisticMessage);
           if (index != -1) {
             _messages[index] = realMessage;
@@ -351,6 +394,28 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 20),
 
+              // Emoji reactions row
+              if (!isMyMessage) ...[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildReactionEmoji('❤️', message),
+                      _buildReactionEmoji('😂', message),
+                      _buildReactionEmoji('😍', message),
+                      _buildReactionEmoji('😢', message),
+                      _buildReactionEmoji('👍', message),
+                      _buildReactionEmoji('👏', message),
+                      _buildReactionEmoji('😮', message),
+                      _buildReactionEmoji('😡', message),
+                      _buildReactionEmoji('🙏', message),
+                      _buildReactionEmoji('🎉', message),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // Options
               ...(isMyMessage
                   ? [
@@ -407,6 +472,70 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildReactionEmoji(String emoji, Message message) {
+    final isSelected = message.reaction == emoji;
+    return GestureDetector(
+      onTap: () async {
+        Navigator.pop(context); // Close the modal
+        // If the same reaction is tapped, remove it
+        if (isSelected) {
+          await _addReactionToMessage(message, null);
+        } else {
+          await _addReactionToMessage(message, emoji);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue[100] : Colors.grey[200],
+          shape: BoxShape.circle,
+          border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
+        ),
+        child: Text(
+          emoji,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.blue[800] : Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addReactionToMessage(Message message, String? emoji) async {
+    try {
+      final result = await _apiService.addReactionToMessage(
+        messageId: message.id,
+        reaction: emoji ?? '',
+      );
+      if (result['success'] == true && result['message'] is Message) {
+        final updatedMessage = result['message'] as Message;
+        setState(() {
+          final index = _messages.indexWhere((m) => m.id == message.id);
+          if (index != -1) {
+            _messages[index] = updatedMessage;
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to add reaction'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add reaction: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildOptionTile({
@@ -578,7 +707,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: [],
+        actions: const [],
       ),
       body: Column(
         children: [
@@ -673,12 +802,25 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessagesList() {
     return ListView.builder(
+      key: const PageStorageKey('chat-messages-list'),
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
+      reverse: true,
+      itemCount: _messages.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (_isLoadingMore && index == _messages.length) {
+          return const Center(
+              child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: CircularProgressIndicator(),
+          ));
+        }
+        if (index >= _messages.length) return const SizedBox.shrink();
         final message = _messages[index];
-        return _buildMessageBubble(message);
+        return KeyedSubtree(
+          key: ValueKey(message.id),
+          child: _buildMessageBubble(message),
+        );
       },
     );
   }
@@ -814,63 +956,86 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    // Video preview card
-                    if (videoIdForPreview != null) ...[
-                      _VideoPreviewCard(videoId: videoIdForPreview),
-                    ] else ...[
-                      // Reply preview
-                      if (message.replyTo != null) ...[
-                        _buildReplyPreview(message.replyTo!, isMyMessage),
-                      ],
-                      // Message content
-                      Text(
-                        message.content,
-                        style: TextStyle(
-                          color: isMyMessage ? Colors.white : Colors.black,
-                          fontSize: 16,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-
-                    // Reaction
-                    if (message.reaction != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        message.reaction!,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                    ],
-
-                    // Timestamp and reply indicator
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _formatTimestamp(message.createdAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isMyMessage
-                                ? Colors.white.withOpacity(0.7)
-                                : Colors.grey[500],
+                        // Video preview card
+                        if (videoIdForPreview != null) ...[
+                          _VideoPreviewCard(
+                            videoId: videoIdForPreview,
+                            sender: message.sender,
                           ),
-                        ),
-                        if (message.replyTo != null) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.reply,
-                            size: 11,
-                            color: isMyMessage
-                                ? Colors.white.withOpacity(0.7)
-                                : Colors.grey[500],
+                        ] else ...[
+                          // Reply preview
+                          if (message.replyTo != null) ...[
+                            _buildReplyPreview(message.replyTo!, isMyMessage),
+                          ],
+                          // Message content
+                          Text(
+                            message.content,
+                            style: TextStyle(
+                              color: isMyMessage ? Colors.white : Colors.black,
+                              fontSize: 16,
+                              height: 1.3,
+                            ),
                           ),
                         ],
+
+                        // Timestamp and reply indicator
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatTimestamp(message.createdAt),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isMyMessage
+                                    ? Colors.white.withOpacity(0.7)
+                                    : Colors.grey[500],
+                              ),
+                            ),
+                            if (message.replyTo != null) ...[
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.reply,
+                                size: 11,
+                                color: isMyMessage
+                                    ? Colors.white.withOpacity(0.7)
+                                    : Colors.grey[500],
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
+                    // Reaction emoji at bottom right, slightly outside the bubble
+                    if (message.reaction != null)
+                      Positioned(
+                        bottom: -25,
+                        right: -25,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 2,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            message.reaction!,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1126,7 +1291,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _VideoPreviewCard extends StatelessWidget {
   final String videoId;
-  const _VideoPreviewCard({super.key, required this.videoId});
+  final User sender;
+  const _VideoPreviewCard({required this.videoId, required this.sender});
 
   @override
   Widget build(BuildContext context) {
@@ -1135,6 +1301,7 @@ class _VideoPreviewCard extends StatelessWidget {
       future: Future.wait([
         apiService.getThumbnailUrl(videoId),
         apiService.getImageHeaders(),
+        apiService.getVideoById(videoId),
       ]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1165,6 +1332,25 @@ class _VideoPreviewCard extends StatelessWidget {
         }
         final thumbnailUrl = snapshot.data![0] as String? ?? '';
         final headers = snapshot.data![1] as Map<String, String>? ?? {};
+        final videoDataResult = snapshot.data![2] as Map<String, dynamic>?;
+        String? creatorUsername;
+        String? creatorProfilePictureUrl;
+        int? creatorId;
+        if (videoDataResult != null &&
+            videoDataResult['success'] == true &&
+            videoDataResult['video'] != null) {
+          final video = videoDataResult['video'];
+          // Try common field names for creator info
+          if (video['creator'] != null) {
+            creatorUsername = video['creator']['username'];
+            creatorProfilePictureUrl = video['creator']['profilePictureUrl'];
+            creatorId = video['creator']['id'];
+          } else if (video['user'] != null) {
+            creatorUsername = video['user']['username'];
+            creatorProfilePictureUrl = video['user']['profilePictureUrl'];
+            creatorId = video['user']['id'];
+          }
+        }
         return GestureDetector(
           onTap: () {
             Navigator.of(context).push(
@@ -1212,6 +1398,122 @@ class _VideoPreviewCard extends StatelessWidget {
                   child: const Icon(Icons.play_arrow,
                       color: Colors.white, size: 32),
                 ),
+                // Profile picture and username of video creator at bottom left
+                if (creatorId != null && creatorUsername != null)
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: Row(
+                      children: [
+                        FutureBuilder<String>(
+                          future: apiService.getProfileImageUrl(
+                            creatorProfilePictureUrl,
+                            userId: creatorId.toString(),
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.grey[300],
+                                child: const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            }
+                            if (snapshot.hasError ||
+                                snapshot.data == null ||
+                                snapshot.data == "null") {
+                              return CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.grey[300],
+                                child: Text(
+                                  creatorUsername![0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            }
+                            return FutureBuilder<Map<String, String>>(
+                              future: apiService.getImageHeaders(),
+                              builder: (context, headersSnapshot) {
+                                return CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Colors.grey[300],
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      snapshot.data!,
+                                      width: 28,
+                                      height: 28,
+                                      fit: BoxFit.cover,
+                                      headers: headersSnapshot.data ?? {},
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor: Colors.grey[300],
+                                          child: Text(
+                                            creatorUsername![0].toUpperCase(),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                        if (loadingProgress == null) {
+                                          return child;
+                                        }
+                                        return CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor: Colors.grey[300],
+                                          child: const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: 50),
+                            child: Text(
+                              creatorUsername,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1226,7 +1528,6 @@ class _ReplyVideoPreviewCard extends StatelessWidget {
   final bool isMyMessage;
 
   const _ReplyVideoPreviewCard({
-    super.key,
     required this.videoId,
     required this.isMyMessage,
   });

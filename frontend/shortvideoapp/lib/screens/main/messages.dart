@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shortvideoapp/constants/strings.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/models/conversation_model.dart';
-import 'package:shortvideoapp/models/message_model.dart';
-import 'package:shortvideoapp/models/user_model.dart';
 import 'package:shortvideoapp/screens/main/chat_screen.dart';
 import 'package:shortvideoapp/screens/main/new_message_screen.dart';
 import 'package:flutter/services.dart';
 
 class MessagesScreen extends StatefulWidget {
-  const MessagesScreen({super.key});
+  final VoidCallback? onConversationsRead;
+  const MessagesScreen({super.key, this.onConversationsRead});
 
   @override
   State<MessagesScreen> createState() => _MessagesScreenState();
@@ -242,6 +241,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           );
           // Refresh conversations when returning from chat
           _loadConversations();
+          if (widget.onConversationsRead != null) {
+            widget.onConversationsRead!();
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(

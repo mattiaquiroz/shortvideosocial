@@ -740,8 +740,9 @@ class ApiService {
       if (username != null) body['username'] = username;
       if (email != null) body['email'] = email;
       if (bio != null) body['bio'] = bio;
-      if (profilePictureUrl != null)
+      if (profilePictureUrl != null) {
         body['profilePictureUrl'] = profilePictureUrl;
+      }
       if (isPrivateAccount != null) body['privateAccount'] = isPrivateAccount;
       if (fullName != null) body['fullName'] = fullName;
       final response = await http.patch(
@@ -1089,38 +1090,38 @@ class ApiService {
   }
 
   // Get conversation with user
-  Future<Map<String, dynamic>> getConversationWithUser(int userId) async {
-    try {
-      final token = await _storageService.getToken();
-      if (token == null) {
-        return {'success': false, 'message': 'Token not found'};
-      }
+  Future<Map<String, dynamic>> getConversationWithUser(int userId,
+      {int page = 0, int size = 15}) async {
+    final token = await _storageService.getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Token not found'};
+    }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/messages/conversation/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+    final response = await http.get(
+      Uri.parse('$baseUrl/messages/conversation/$userId?page=$page&size=$size'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final String utf8Body = utf8.decode(response.bodyBytes);
-        final data = jsonDecode(utf8Body);
-        final messages =
-            (data as List).map((json) => Message.fromJson(json)).toList();
-        return {
-          'success': true,
-          'messages': messages,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to load conversation',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    if (response.statusCode == 200) {
+      final String utf8Body = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(utf8Body);
+      final messages = (data['messages'] as List)
+          .map((json) => Message.fromJson(json))
+          .toList();
+      return {
+        'success': true,
+        'messages': messages,
+        'hasMore': data['hasMore'] ?? false,
+        'page': data['page'] ?? page,
+      };
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to load conversation',
+      };
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shortvideoapp/constants/strings.dart';
 import 'package:shortvideoapp/services/api_service.dart';
 import 'package:shortvideoapp/models/user_model.dart';
 import 'package:shortvideoapp/screens/main/chat_screen.dart';

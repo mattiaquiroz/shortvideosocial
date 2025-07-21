@@ -75,7 +75,7 @@ class _SearchScreenState extends State<SearchScreen>
       );
     }
 
-    Future<String> _getThumbnailUrl(Map<String, dynamic> video) async {
+    Future<String> getThumbnailUrl(Map<String, dynamic> video) async {
       final videoId = video['id']?.toString() ?? '';
       if (videoId.isEmpty) {
         return 'https://via.placeholder.com/300x500.png?text=No+Thumbnail';
@@ -88,7 +88,7 @@ class _SearchScreenState extends State<SearchScreen>
       }
     }
 
-    Future<String> _getUserProfileImageUrl(Map<String, dynamic>? user) async {
+    Future<String> getUserProfileImageUrl(Map<String, dynamic>? user) async {
       if (user == null) {
         return 'https://via.placeholder.com/300x500.png?text=No+Profile';
       }

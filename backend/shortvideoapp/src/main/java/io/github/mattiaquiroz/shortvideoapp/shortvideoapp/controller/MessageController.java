@@ -21,6 +21,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.Map;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -106,9 +111,11 @@ public class MessageController {
 
     @GetMapping("/conversation/{userId}")
     @Operation(summary = "Get conversation with user", description = "Get all messages in a conversation with a specific user")
-    public ResponseEntity<?> getConversationWithUser(@PathVariable Long userId, 
-                                                   HttpServletRequest httpRequest) {
-        // Check if user is authenticated
+    public ResponseEntity<?> getConversationWithUser(
+        @PathVariable Long userId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "15") int size,
+        HttpServletRequest httpRequest) {
         var currentUserOpt = authUtil.getCurrentUser(httpRequest);
         if (currentUserOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
@@ -129,16 +136,20 @@ public class MessageController {
             return ResponseEntity.badRequest().body("Cannot get conversation with yourself");
         }
 
-        List<Message> messages = messageRepository.findConversationBetweenUsers(currentUser, otherUser);
-        
-        // Mark messages as read
-        messageRepository.markMessagesAsRead(otherUser, currentUser);
-        
-        List<MessageDTO> messageDTOs = messages.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Message> messagePage = messageRepository.findConversation(currentUser.getId(), otherUser.getId(), pageable);
 
-        return ResponseEntity.ok(messageDTOs);
+        List<MessageDTO> messages = messagePage.getContent().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("messages", messages);
+        response.put("totalPages", messagePage.getTotalPages());
+        response.put("totalElements", messagePage.getTotalElements());
+        response.put("hasMore", messagePage.hasNext());
+        response.put("page", page);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/unread-count")

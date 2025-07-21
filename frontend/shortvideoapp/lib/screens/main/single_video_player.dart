@@ -100,7 +100,7 @@ class _SingleVideoPlayerScreenState extends State<SingleVideoPlayerScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error, color: Colors.white, size: 48),
+                        const Icon(Icons.error, color: Colors.white, size: 48),
                         const SizedBox(height: 16),
                         Text(
                           _error!,
@@ -703,10 +703,10 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
           backgroundColor: Colors.grey[300],
           child: ClipOval(
             child: _profileImageLoading
-                ? SizedBox(
+                ? const SizedBox(
                     width: 44,
                     height: 44,
-                    child: const Center(
+                    child: Center(
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -737,10 +737,10 @@ class _SingleEnhancedVideoPlayerState extends State<SingleEnhancedVideoPlayer> {
                           if (loadingProgress == null) {
                             return child;
                           }
-                          return SizedBox(
+                          return const SizedBox(
                             width: 44,
                             height: 44,
-                            child: const Center(
+                            child: Center(
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor:
